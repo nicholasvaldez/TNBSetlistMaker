@@ -1,0 +1,42 @@
+## .NET / C#
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.userosscache
+*.sln.docuser
+.vs/
+.vscode/
+
+## Node / React
+node_modules/
+dist/
+dist-ssr/
+*.local
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+## JetBrains / Rider
+.idea/
+*.sln.iml
+*.user
+*.suo
+*.shelve
+*.patch
+
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+Network Trash Folder
+Temporary Items
+.apdisk
+
+## Databases
+*.db
+*.sqlite
