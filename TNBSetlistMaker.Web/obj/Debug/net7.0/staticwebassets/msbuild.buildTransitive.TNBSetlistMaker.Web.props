@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../buildMultiTargeting/TNBSetlistMaker.Web.props" />
+</Project>

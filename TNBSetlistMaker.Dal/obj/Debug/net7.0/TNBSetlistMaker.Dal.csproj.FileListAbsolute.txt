@@ -1,0 +1,15 @@
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/bin/Debug/net7.0/TNBSetlistMaker.Dal.deps.json
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/bin/Debug/net7.0/TNBSetlistMaker.Dal.dll
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/bin/Debug/net7.0/TNBSetlistMaker.Dal.pdb
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/bin/Debug/net7.0/TNBSetlistMaker.Domain.dll
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/bin/Debug/net7.0/TNBSetlistMaker.Domain.pdb
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/obj/Debug/net7.0/TNBSetlistMaker.Dal.csproj.AssemblyReference.cache
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/obj/Debug/net7.0/TNBSetlistMaker.Dal.GeneratedMSBuildEditorConfig.editorconfig
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/obj/Debug/net7.0/TNBSetlistMaker.Dal.AssemblyInfoInputs.cache
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/obj/Debug/net7.0/TNBSetlistMaker.Dal.AssemblyInfo.cs
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/obj/Debug/net7.0/TNBSetlistMaker.Dal.csproj.CoreCompileInputs.cache
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/obj/Debug/net7.0/TNBSetlistMaker.Dal.csproj.CopyComplete
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/obj/Debug/net7.0/TNBSetlistMaker.Dal.dll
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/obj/Debug/net7.0/refint/TNBSetlistMaker.Dal.dll
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/obj/Debug/net7.0/TNBSetlistMaker.Dal.pdb
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Dal/obj/Debug/net7.0/ref/TNBSetlistMaker.Dal.dll

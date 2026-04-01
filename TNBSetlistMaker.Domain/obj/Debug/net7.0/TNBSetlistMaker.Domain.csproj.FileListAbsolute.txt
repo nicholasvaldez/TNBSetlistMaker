@@ -1,0 +1,11 @@
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/bin/Debug/net7.0/TNBSetlistMaker.Domain.deps.json
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/bin/Debug/net7.0/TNBSetlistMaker.Domain.dll
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/bin/Debug/net7.0/TNBSetlistMaker.Domain.pdb
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/obj/Debug/net7.0/TNBSetlistMaker.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/obj/Debug/net7.0/TNBSetlistMaker.Domain.AssemblyInfoInputs.cache
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/obj/Debug/net7.0/TNBSetlistMaker.Domain.AssemblyInfo.cs
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/obj/Debug/net7.0/TNBSetlistMaker.Domain.csproj.CoreCompileInputs.cache
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/obj/Debug/net7.0/TNBSetlistMaker.Domain.dll
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/obj/Debug/net7.0/refint/TNBSetlistMaker.Domain.dll
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/obj/Debug/net7.0/TNBSetlistMaker.Domain.pdb
+/Users/nicholasvaldez/Coding/TNBSetlistMaker/TNBSetlistMaker.Domain/obj/Debug/net7.0/ref/TNBSetlistMaker.Domain.dll
