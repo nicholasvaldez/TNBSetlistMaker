@@ -29,4 +29,14 @@ public class SpotifyController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("sync-all")]
+    public async Task<IActionResult> SyncAll()
+    {
+        await _spotifyService.SyncAllTrackedPlaylistsAsync();
+        
+        return Accepted(new { 
+            message = "Sync jobs enqueued. Monitoring available in Hangfire Dashboard." 
+        });
+    }
 }

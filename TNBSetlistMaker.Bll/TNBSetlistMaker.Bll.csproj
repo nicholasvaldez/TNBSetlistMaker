@@ -2,9 +2,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TNBSetlistMaker.Domain\TNBSetlistMaker.Domain.csproj" />
+    <ProjectReference Include="..\TNBSetlistMaker.Dal\TNBSetlistMaker.Dal.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Hangfire.Core" Version="1.8.23" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />
   </ItemGroup>

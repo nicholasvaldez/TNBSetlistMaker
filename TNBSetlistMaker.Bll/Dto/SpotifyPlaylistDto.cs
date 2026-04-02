@@ -7,11 +7,15 @@ public class SpotifyPlaylistDto
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     
-    [JsonPropertyName("items")] 
-    public SpotifyTracksContainer Items { get; set; } = new();}
+    // Spotify uses "tracks" as the key for the playlist's song list
+    [JsonPropertyName("tracks")] 
+    public SpotifyTracksContainer Tracks { get; set; } = new();
+}
 
 public class SpotifyTracksContainer
 {
+    // Inside the tracks object, the actual list is called "items"
+    [JsonPropertyName("items")]
     public List<SpotifyTrackItem> Items { get; set; } = new();
 }
 

@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
 
     public DbSet<Playlist> Playlists => Set<Playlist>();
     public DbSet<Song> Songs => Set<Song>();
+    public DbSet<TrackedPlaylist> TrackedPlaylists => Set<TrackedPlaylist>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
