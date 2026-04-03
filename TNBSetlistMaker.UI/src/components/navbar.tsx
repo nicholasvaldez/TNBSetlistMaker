@@ -1,14 +1,15 @@
-import { Music } from "lucide-react"
-
 export function Navbar() {
   return (
-    <nav className="border-b border-border bg-background">
-      <div className="flex h-14 items-center px-4">
-        <div className="flex items-center gap-2">
-          <Music className="h-6 w-6" />
-          <span className="text-lg font-semibold">TNB Setlist Maker</span>
-        </div>
+    <nav className="bg-background">
+      <div className="flex h-28 items-center justify-center gap-4 px-6">
+        <img src="/TNB.webp" alt="TNB logo" className="h-24 w-auto" />
+        <span
+          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+          className="text-2xl font-semibold tracking-wide text-primary"
+        >
+          Set The Night
+        </span>
       </div>
     </nav>
-  )
+  );
 }
