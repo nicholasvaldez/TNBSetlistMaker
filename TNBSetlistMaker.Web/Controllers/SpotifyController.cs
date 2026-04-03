@@ -29,4 +29,18 @@ public class SpotifyController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("sync-all")]
+    public async Task<IActionResult> SyncAll()
+    {
+        await _spotifyService.SyncAllTrackedPlaylistsAsync();
+        return Ok(new { message = "Sync jobs enqueued" });
+    }
+
+    [HttpGet("songs")]
+    public async Task<IActionResult> GetSongs([FromQuery] string? playlistId = null)
+    {
+        var songs = await _spotifyService.GetSongsAsync(playlistId);
+        return Ok(songs);
+    }
 }

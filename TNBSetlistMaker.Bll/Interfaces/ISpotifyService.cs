@@ -9,4 +9,7 @@ public interface ISpotifyService
     string GetAuthorizationUrl();
     Task ExchangeCodeForTokensAsync(string code);
     Task<string> GetOrRefreshAccessTokenAsync();
+    Task SyncPlaylistAsync(string spotifyId);
+    Task SyncAllTrackedPlaylistsAsync();
+    Task<IEnumerable<SongWithPlaylistDto>> GetSongsAsync(string? playlistId = null);
 }

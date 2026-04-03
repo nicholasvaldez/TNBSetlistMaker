@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Web;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using TNBSetlistMaker.Bll.Dto;
@@ -202,5 +203,140 @@ public class SpotifyService : ISpotifyService
         }
 
         return spotifyData;
+    }
+
+    private async Task<(string Name, string? Description, string? ImageUrl)> GetPlaylistMetadataAsync(string playlistId)
+    {
+        var token = await GetOrRefreshAccessTokenAsync();
+        var url = $"https://api.spotify.com/v1/playlists/{playlistId}?fields=name,description,images";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var content = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var name = content.GetProperty("name").GetString() ?? playlistId;
+        var description = content.TryGetProperty("description", out var desc) ? desc.GetString() : null;
+        string? imageUrl = null;
+        if (content.TryGetProperty("images", out var images) && images.GetArrayLength() > 0)
+        {
+            imageUrl = images[0].GetProperty("url").GetString();
+        }
+
+        return (name, description, imageUrl);
+    }
+
+    public async Task SyncPlaylistAsync(string spotifyId)
+    {
+        // Fetch playlist metadata and tracks from Spotify
+        var metadata = await GetPlaylistMetadataAsync(spotifyId);
+        var spotifyData = await GetPlaylistAsync(spotifyId);
+
+        // Upsert Playlist
+        var playlist = await _context.Playlists
+            .Include(p => p.Songs)
+            .FirstOrDefaultAsync(p => p.SpotifyId == spotifyId);
+
+        if (playlist == null)
+        {
+            playlist = new Playlist
+            {
+                Id = Guid.NewGuid(),
+                SpotifyId = spotifyId,
+                Name = metadata.Name,
+                Description = metadata.Description,
+                ImageUrl = metadata.ImageUrl
+            };
+            _context.Playlists.Add(playlist);
+        }
+        else
+        {
+            playlist.Name = metadata.Name;
+            playlist.Description = metadata.Description;
+            playlist.ImageUrl = metadata.ImageUrl;
+        }
+
+        // Get current Spotify track IDs
+        var currentSpotifyTrackIds = spotifyData.Items
+            .Where(i => i.Item != null && !string.IsNullOrEmpty(i.Item.Id))
+            .Select(i => i.Item.Id)
+            .ToHashSet();
+
+        // Remove songs that are no longer in the playlist
+        var songsToRemove = playlist.Songs
+            .Where(s => !currentSpotifyTrackIds.Contains(s.SpotifyId))
+            .ToList();
+        _context.Songs.RemoveRange(songsToRemove);
+
+        // Upsert songs
+        foreach (var item in spotifyData.Items)
+        {
+            if (item.Item == null || string.IsNullOrEmpty(item.Item.Id))
+                continue;
+
+            var existingSong = playlist.Songs.FirstOrDefault(s => s.SpotifyId == item.Item.Id);
+            var artistName = item.Item.Artists.FirstOrDefault()?.Name ?? "Unknown Artist";
+
+            if (existingSong == null)
+            {
+                var newSong = new Song
+                {
+                    Id = Guid.NewGuid(),
+                    SpotifyId = item.Item.Id,
+                    Title = item.Item.Name,
+                    Artist = artistName,
+                    PlaylistId = playlist.Id
+                };
+                _context.Songs.Add(newSong);
+            }
+            else
+            {
+                existingSong.Title = item.Item.Name;
+                existingSong.Artist = artistName;
+            }
+        }
+
+        // Update TrackedPlaylist.LastSynced
+        var trackedPlaylist = await _context.TrackedPlaylists
+            .FirstOrDefaultAsync(tp => tp.SpotifyId == spotifyId);
+        if (trackedPlaylist != null)
+        {
+            trackedPlaylist.LastSynced = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task SyncAllTrackedPlaylistsAsync()
+    {
+        var trackedPlaylists = await _context.TrackedPlaylists.ToListAsync();
+
+        foreach (var tp in trackedPlaylists)
+        {
+            BackgroundJob.Enqueue<ISpotifyService>(s => s.SyncPlaylistAsync(tp.SpotifyId));
+        }
+    }
+
+    public async Task<IEnumerable<SongWithPlaylistDto>> GetSongsAsync(string? playlistId = null)
+    {
+        var query = _context.Songs.Include(s => s.Playlist).AsQueryable();
+
+        if (!string.IsNullOrEmpty(playlistId))
+        {
+            query = query.Where(s => s.Playlist != null && s.Playlist.SpotifyId == playlistId);
+        }
+
+        return await query.Select(s => new SongWithPlaylistDto
+        {
+            Id = s.Id,
+            SpotifyId = s.SpotifyId,
+            Title = s.Title,
+            Artist = s.Artist,
+            Duration = s.Duration,
+            PlaylistId = s.PlaylistId,
+            PlaylistName = s.Playlist != null ? s.Playlist.Name : string.Empty
+        }).ToListAsync();
     }
 }
