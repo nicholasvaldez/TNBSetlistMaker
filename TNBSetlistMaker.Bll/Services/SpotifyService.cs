@@ -1,14 +1,13 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.RegularExpressions;
+using System.Web;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.EntityFrameworkCore; 
-using Hangfire;
 using TNBSetlistMaker.Bll.Dto;
 using TNBSetlistMaker.Bll.Interfaces;
+using TNBSetlistMaker.Dal.Data;
 using TNBSetlistMaker.Domain.Entities;
-using TNBSetlistMaker.Dal.Data; 
 
 namespace TNBSetlistMaker.Bll.Services;
 
@@ -16,7 +15,11 @@ public class SpotifyService : ISpotifyService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _config;
-    private readonly AppDbContext _context; 
+    private readonly AppDbContext _context;
+    private const string AuthUrl = "https://accounts.spotify.com/authorize";
+    private const string TokenUrl = "https://accounts.spotify.com/api/token";
+    private const string Scopes = "playlist-read-private playlist-read-collaborative";
+
     public SpotifyService(HttpClient httpClient, IConfiguration config, AppDbContext context)
     {
         _httpClient = httpClient;
@@ -24,82 +27,115 @@ public class SpotifyService : ISpotifyService
         _context = context;
     }
 
-    public async Task<Playlist> GetPlaylistByUrlAsync(string url)
+    public string GetAuthorizationUrl()
     {
-        var playlistId = ExtractPlaylistId(url);
-        var token = await GetAccessTokenAsync();
+        var clientId = _config["Spotify:ClientId"];
+        var redirectUri = _config["Spotify:RedirectUri"];
 
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        
-        var spotifyData = await _httpClient.GetFromJsonAsync<SpotifyPlaylistDto>($"https://api.spotify.com/v1/playlists/{playlistId}");
+        var queryParams = HttpUtility.ParseQueryString(string.Empty);
+        queryParams["client_id"] = clientId;
+        queryParams["response_type"] = "code";
+        queryParams["redirect_uri"] = redirectUri;
+        queryParams["scope"] = Scopes;
 
-        if (spotifyData == null) throw new Exception("Could not fetch playlist from Spotify.");
+        return $"{AuthUrl}?{queryParams}";
+    }
 
-        return new Playlist
+    public async Task ExchangeCodeForTokensAsync(string code)
+    {
+        var clientId = _config["Spotify:ClientId"];
+        var clientSecret = _config["Spotify:ClientSecret"];
+        var redirectUri = _config["Spotify:RedirectUri"];
+
+        var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl);
+        var authHeader = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", authHeader);
+
+        request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            SpotifyId = spotifyData.Id,
-            Name = spotifyData.Name,
-            Songs = spotifyData.Tracks.Items.Select(item => new Song
-            {
-                SpotifyId = item.Track.Id,
-                Title = item.Track.Name,
-                Artist = string.Join(", ", item.Track.Artists.Select(a => a.Name))
-            }).ToList()
+            { "grant_type", "authorization_code" },
+            { "code", code },
+            { "redirect_uri", redirectUri! }
+        });
+
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var content = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var accessToken = content.GetProperty("access_token").GetString()!;
+        var refreshToken = content.GetProperty("refresh_token").GetString()!;
+        var expiresIn = content.GetProperty("expires_in").GetInt32();
+
+        // Remove any existing tokens and store the new one
+        var existingTokens = await _context.SpotifyTokens.ToListAsync();
+        _context.SpotifyTokens.RemoveRange(existingTokens);
+
+        var token = new SpotifyToken
+        {
+            Id = Guid.NewGuid(),
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = DateTime.UtcNow.AddSeconds(expiresIn - 60), // Buffer of 60 seconds
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
-    }
 
-    public async Task SyncAllTrackedPlaylistsAsync()
-    {
-        var tracked = await _context.TrackedPlaylists.ToListAsync();
-
-        foreach (var playlist in tracked)
-        {
-            // Hangfire enqueues this for background processing
-            BackgroundJob.Enqueue<ISpotifyService>(service => 
-                service.SyncPlaylistAsync(playlist.SpotifyUrl));
-            
-            playlist.LastSynced = DateTime.UtcNow;
-        }
-
+        _context.SpotifyTokens.Add(token);
         await _context.SaveChangesAsync();
     }
 
-    public async Task<Playlist> SyncPlaylistAsync(string url)
+    public async Task<string> GetOrRefreshAccessTokenAsync()
     {
-        var spotifyPlaylist = await GetPlaylistByUrlAsync(url);
+        var token = await _context.SpotifyTokens.FirstOrDefaultAsync();
 
-        var existingPlaylist = await _context.Playlists
-            .Include(p => p.Songs)
-            .FirstOrDefaultAsync(p => p.SpotifyId == spotifyPlaylist.SpotifyId);
-
-        if (existingPlaylist == null)
+        if (token == null)
         {
-            _context.Playlists.Add(spotifyPlaylist);
-            await _context.SaveChangesAsync();
-            return spotifyPlaylist;
+            throw new InvalidOperationException("No Spotify token found. Please authenticate at /auth/spotify/login");
         }
 
-        existingPlaylist.Name = spotifyPlaylist.Name;
-
-        foreach (var incomingSong in spotifyPlaylist.Songs)
+        // If token is expired or about to expire, refresh it
+        if (DateTime.UtcNow >= token.ExpiresAt)
         {
-            var existingSong = existingPlaylist.Songs
-                .FirstOrDefault(s => s.SpotifyId == incomingSong.SpotifyId);
+            await RefreshAccessTokenAsync(token);
+        }
 
-            if (existingSong == null)
-            {
-                incomingSong.PlaylistId = existingPlaylist.Id;
-                existingPlaylist.Songs.Add(incomingSong);
-            }
-            else
-            {
-                existingSong.Title = incomingSong.Title;
-                existingSong.Artist = incomingSong.Artist;
-            }
+        return token.AccessToken;
+    }
+
+    private async Task RefreshAccessTokenAsync(SpotifyToken token)
+    {
+        var clientId = _config["Spotify:ClientId"];
+        var clientSecret = _config["Spotify:ClientSecret"];
+
+        var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl);
+        var authHeader = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", authHeader);
+
+        request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            { "grant_type", "refresh_token" },
+            { "refresh_token", token.RefreshToken }
+        });
+
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var content = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var accessToken = content.GetProperty("access_token").GetString()!;
+        var expiresIn = content.GetProperty("expires_in").GetInt32();
+
+        // Update the token in the database
+        token.AccessToken = accessToken;
+        token.ExpiresAt = DateTime.UtcNow.AddSeconds(expiresIn - 60);
+        token.UpdatedAt = DateTime.UtcNow;
+
+        // Spotify may return a new refresh token
+        if (content.TryGetProperty("refresh_token", out var newRefreshToken))
+        {
+            token.RefreshToken = newRefreshToken.GetString()!;
         }
 
         await _context.SaveChangesAsync();
-        return existingPlaylist;
     }
 
     public async Task<string> GetAccessTokenAsync()
@@ -107,11 +143,9 @@ public class SpotifyService : ISpotifyService
         var clientId = _config["Spotify:ClientId"];
         var clientSecret = _config["Spotify:ClientSecret"];
 
-        // 2026 Endpoint Update
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://accounts.spotify.com/api/token");
-        
+        var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl);
         var authHeader = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
-        
+
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic", authHeader);
         request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -125,19 +159,48 @@ public class SpotifyService : ISpotifyService
         return content.GetProperty("access_token").GetString() ?? string.Empty;
     }
 
-    private string ExtractPlaylistId(string url)
+    public async Task<SpotifyTracksResponseDto> GetPlaylistAsync(string playlistId)
     {
-        if (string.IsNullOrWhiteSpace(url)) 
-            throw new ArgumentException("Playlist URL cannot be empty.");
+        var token = await GetOrRefreshAccessTokenAsync();
 
-        // This regex looks for 'playlist/' and captures everything up to the next '?' or '/'
-        var match = Regex.Match(url, @"playlist/([^?/\s]+)");
-        
-        if (match.Success)
+        // 1. Use the /items endpoint (Feb 2026 API update)
+        var fields = "items(item(id,name,artists(name))),next";
+        var baseUrl = $"https://api.spotify.com/v1/playlists/{playlistId}/items?market=US&fields={fields}";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, baseUrl);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Add("Accept", "application/json");
+        request.Headers.Add("User-Agent", "TNBSetlistMaker/1.0");
+
+        var response = await _httpClient.SendAsync(request);
+
+        if (!response.IsSuccessStatusCode)
         {
-            return match.Groups[1].Value;
+            var error = await response.Content.ReadAsStringAsync();
+            var headers = string.Join(", ", response.Headers.Select(h => $"{h.Key}: {string.Join(",", h.Value)}"));
+            throw new Exception($"Spotify API error ({response.StatusCode}): {error} | Headers: {headers}");
         }
 
-        throw new ArgumentException("The provided URL is not a valid Spotify playlist link.");
+        var spotifyData = await response.Content.ReadFromJsonAsync<SpotifyTracksResponseDto>();
+        if (spotifyData == null) throw new Exception("Failed to get track data.");
+
+        // 2. Pagination Loop (Ensures you get more than the first 100 songs)
+        var nextUrl = spotifyData.Next;
+        while (!string.IsNullOrEmpty(nextUrl))
+        {
+            var pageRequest = new HttpRequestMessage(HttpMethod.Get, nextUrl);
+            pageRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var pageResponse = await _httpClient.SendAsync(pageRequest);
+            if (!pageResponse.IsSuccessStatusCode) break;
+
+            var page = await pageResponse.Content.ReadFromJsonAsync<SpotifyTracksResponseDto>();
+            if (page == null) break;
+
+            spotifyData.Items.AddRange(page.Items);
+            nextUrl = page.Next;
+        }
+
+        return spotifyData;
     }
 }

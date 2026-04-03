@@ -1,13 +1,12 @@
-using TNBSetlistMaker.Domain.Entities;
+using TNBSetlistMaker.Bll.Dto;
 
 namespace TNBSetlistMaker.Bll.Interfaces;
 
 public interface ISpotifyService
 {
     Task<string> GetAccessTokenAsync();
-    Task<Playlist> GetPlaylistByUrlAsync(string url);
-    
-    // Added for background syncing and database persistence
-    Task<Playlist> SyncPlaylistAsync(string url);
-    Task SyncAllTrackedPlaylistsAsync();
+    Task<SpotifyTracksResponseDto> GetPlaylistAsync(string playlistId);
+    string GetAuthorizationUrl();
+    Task ExchangeCodeForTokensAsync(string code);
+    Task<string> GetOrRefreshAccessTokenAsync();
 }

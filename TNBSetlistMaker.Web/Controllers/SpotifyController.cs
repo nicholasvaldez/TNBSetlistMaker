@@ -14,29 +14,19 @@ public class SpotifyController : ControllerBase
         _spotifyService = spotifyService;
     }
 
-    [HttpGet("playlist")]
-    public async Task<IActionResult> GetPlaylist([FromQuery] string url)
+    [HttpGet("playlist/{playlistId}")]
+    public async Task<IActionResult> GetPlaylist(string playlistId)
     {
         try
         {
-            if (string.IsNullOrEmpty(url)) return BadRequest("URL is required.");
-            
-            var playlist = await _spotifyService.GetPlaylistByUrlAsync(url);
+            if (string.IsNullOrEmpty(playlistId)) return BadRequest("Playlist ID is required.");
+
+            var playlist = await _spotifyService.GetPlaylistAsync(playlistId);
             return Ok(playlist);
         }
         catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
         }
-    }
-
-    [HttpPost("sync-all")]
-    public async Task<IActionResult> SyncAll()
-    {
-        await _spotifyService.SyncAllTrackedPlaylistsAsync();
-        
-        return Accepted(new { 
-            message = "Sync jobs enqueued. Monitoring available in Hangfire Dashboard." 
-        });
     }
 }
