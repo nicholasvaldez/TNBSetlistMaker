@@ -110,7 +110,7 @@ export function DataTable({ columns, data }: DataTableProps) {
                   <FaHeart /> Must
                 </span>
               </SelectItem>
-              <SelectItem value="fine" className="focus:bg-[#c47d32]/20 focus:text-[#c47d32]">
+              <SelectItem value="maybe" className="focus:bg-[#c47d32]/20 focus:text-[#c47d32]">
                 <span className="flex items-center gap-2">
                   <FaMeh /> Maybe
                 </span>
@@ -134,7 +134,7 @@ export function DataTable({ columns, data }: DataTableProps) {
               .filter((s) => ratings.has(s.id))
               .map((s) => {
                 const r = ratings.get(s.id)!;
-                const label = r === "must" ? "Must" : r === "fine" ? "Maybe" : "Skip";
+                const label = r === "must" ? "Must" : r === "maybe" ? "Maybe" : "Skip";
                 return `"${s.title.replace(/"/g, '""')}","${s.artist.replace(/"/g, '""')}","${s.playlistName.replace(/"/g, '""')}","${label}"`;
               });
             const csv = ["Title,Artist,Playlist,Rating", ...rows].join("\n");
@@ -177,7 +177,7 @@ export function DataTable({ columns, data }: DataTableProps) {
                 const rowBg =
                   rating === "must"
                     ? "bg-[#5d7a5c]/15 hover:bg-[#5d7a5c]/25"
-                    : rating === "fine"
+                    : rating === "maybe"
                       ? "bg-[#c47d32]/15 hover:bg-[#c47d32]/25"
                       : rating === "skip"
                         ? "bg-[#a64d3d]/15 hover:bg-[#a64d3d]/25"

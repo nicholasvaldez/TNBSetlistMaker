@@ -26,7 +26,14 @@ export function useSongs(playlistId?: string): UseSongsResult {
         const response = await fetch(url)
 
         if (!response.ok) {
-          throw new Error(`Failed to fetch songs: ${response.statusText}`)
+          const text = await response.text()
+          throw new Error(`Failed to fetch songs (${response.status}): ${text.slice(0, 200)}`)
+        }
+
+        const contentType = response.headers.get("content-type")
+        if (!contentType?.includes("application/json")) {
+          const text = await response.text()
+          throw new Error(`Expected JSON but got ${contentType}: ${text.slice(0, 200)}`)
         }
 
         const data = await response.json()

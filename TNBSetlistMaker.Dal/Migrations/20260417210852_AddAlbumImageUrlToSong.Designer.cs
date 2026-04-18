@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using TNBSetlistMaker.Dal.Data;
@@ -11,9 +12,11 @@ using TNBSetlistMaker.Dal.Data;
 namespace TNBSetlistMaker.Dal.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260417210852_AddAlbumImageUrlToSong")]
+    partial class AddAlbumImageUrlToSong
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -66,9 +69,6 @@ namespace TNBSetlistMaker.Dal.Migrations
                     b.Property<Guid>("PlaylistId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("PreviewUrl")
-                        .HasColumnType("text");
-
                     b.Property<string>("SpotifyId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -76,9 +76,6 @@ namespace TNBSetlistMaker.Dal.Migrations
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<int?>("Year")
-                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

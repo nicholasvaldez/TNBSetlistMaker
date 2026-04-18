@@ -165,7 +165,7 @@ public class SpotifyService : ISpotifyService
         var token = await GetOrRefreshAccessTokenAsync();
 
         // 1. Use the /items endpoint (Feb 2026 API update)
-        var fields = "items(item(id,name,artists(name))),next";
+        var fields = "items(item(id,name,duration_ms,preview_url,artists(name),album(images,release_date))),next";
         var baseUrl = $"https://api.spotify.com/v1/playlists/{playlistId}/items?market=US&fields={fields}";
 
         var request = new HttpRequestMessage(HttpMethod.Get, baseUrl);
@@ -279,6 +279,31 @@ public class SpotifyService : ISpotifyService
             var existingSong = playlist.Songs.FirstOrDefault(s => s.SpotifyId == item.Item.Id);
             var artistName = item.Item.Artists.FirstOrDefault()?.Name ?? "Unknown Artist";
 
+            // Get the album image URL (prefer medium size ~300px, fallback to first available)
+            var albumImageUrl = item.Item.Album?.Images
+                .OrderBy(img => Math.Abs((img.Width ?? 300) - 300))
+                .FirstOrDefault()?.Url;
+
+            // Parse duration from milliseconds to "M:SS" format
+            string? duration = null;
+            if (item.Item.DurationMs.HasValue)
+            {
+                var totalSeconds = item.Item.DurationMs.Value / 1000;
+                var minutes = totalSeconds / 60;
+                var seconds = totalSeconds % 60;
+                duration = $"{minutes}:{seconds:D2}";
+            }
+
+            // Parse year from release_date (format: "YYYY-MM-DD" or "YYYY")
+            int? year = null;
+            if (!string.IsNullOrEmpty(item.Item.Album?.ReleaseDate) && item.Item.Album.ReleaseDate.Length >= 4)
+            {
+                if (int.TryParse(item.Item.Album.ReleaseDate[..4], out var parsedYear))
+                {
+                    year = parsedYear;
+                }
+            }
+
             if (existingSong == null)
             {
                 var newSong = new Song
@@ -287,6 +312,10 @@ public class SpotifyService : ISpotifyService
                     SpotifyId = item.Item.Id,
                     Title = item.Item.Name,
                     Artist = artistName,
+                    AlbumImageUrl = albumImageUrl,
+                    Duration = duration,
+                    Year = year,
+                    PreviewUrl = item.Item.PreviewUrl,
                     PlaylistId = playlist.Id
                 };
                 _context.Songs.Add(newSong);
@@ -295,6 +324,10 @@ public class SpotifyService : ISpotifyService
             {
                 existingSong.Title = item.Item.Name;
                 existingSong.Artist = artistName;
+                existingSong.AlbumImageUrl = albumImageUrl;
+                existingSong.Duration = duration;
+                existingSong.Year = year;
+                existingSong.PreviewUrl = item.Item.PreviewUrl;
             }
         }
 
@@ -335,8 +368,71 @@ public class SpotifyService : ISpotifyService
             Title = s.Title,
             Artist = s.Artist,
             Duration = s.Duration,
+            AlbumImageUrl = s.AlbumImageUrl,
+            Year = s.Year,
             PlaylistId = s.PlaylistId,
             PlaylistName = s.Playlist != null ? s.Playlist.Name : string.Empty
         }).ToListAsync();
+    }
+
+    public async Task<string?> GetTrackPreviewUrlAsync(string spotifyId)
+    {
+        var token = await GetOrRefreshAccessTokenAsync();
+        var url = $"https://api.spotify.com/v1/tracks/{spotifyId}?market=US";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode) return null;
+
+        var content = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        // Try Spotify preview_url first (rarely available now)
+        if (content.TryGetProperty("preview_url", out var previewUrl))
+        {
+            var spotifyPreview = previewUrl.GetString();
+            if (!string.IsNullOrEmpty(spotifyPreview)) return spotifyPreview;
+        }
+
+        // Fallback: Get ISRC and query Deezer for preview
+        if (content.TryGetProperty("external_ids", out var externalIds) &&
+            externalIds.TryGetProperty("isrc", out var isrcElement))
+        {
+            var isrc = isrcElement.GetString();
+            if (!string.IsNullOrEmpty(isrc))
+            {
+                return await GetDeezerPreviewByIsrcAsync(isrc);
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<string?> GetDeezerPreviewByIsrcAsync(string isrc)
+    {
+        try
+        {
+            var url = $"https://api.deezer.com/2.0/track/isrc:{isrc}";
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode) return null;
+
+            var content = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+            // Check for error response from Deezer
+            if (content.TryGetProperty("error", out _)) return null;
+
+            if (content.TryGetProperty("preview", out var preview))
+            {
+                return preview.GetString();
+            }
+        }
+        catch
+        {
+            // Silently fail - preview is optional
+        }
+
+        return null;
     }
 }

@@ -12,4 +12,5 @@ public interface ISpotifyService
     Task SyncPlaylistAsync(string spotifyId);
     Task SyncAllTrackedPlaylistsAsync();
     Task<IEnumerable<SongWithPlaylistDto>> GetSongsAsync(string? playlistId = null);
+    Task<string?> GetTrackPreviewUrlAsync(string spotifyId);
 }

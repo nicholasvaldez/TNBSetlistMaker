@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TNBSetlistMaker.Bll.Interfaces;
+using TNBSetlistMaker.Dal.Data;
+using TNBSetlistMaker.Domain.Entities;
 
 namespace TNBSetlistMaker.Web.Controllers;
 
@@ -8,10 +11,12 @@ namespace TNBSetlistMaker.Web.Controllers;
 public class SpotifyController : ControllerBase
 {
     private readonly ISpotifyService _spotifyService;
+    private readonly AppDbContext _context;
 
-    public SpotifyController(ISpotifyService spotifyService)
+    public SpotifyController(ISpotifyService spotifyService, AppDbContext context)
     {
         _spotifyService = spotifyService;
+        _context = context;
     }
 
     [HttpGet("playlist/{playlistId}")]
@@ -43,4 +48,47 @@ public class SpotifyController : ControllerBase
         var songs = await _spotifyService.GetSongsAsync(playlistId);
         return Ok(songs);
     }
+
+    [HttpGet("tracks/{spotifyId}/preview")]
+    public async Task<IActionResult> GetTrackPreview(string spotifyId)
+    {
+        var previewUrl = await _spotifyService.GetTrackPreviewUrlAsync(spotifyId);
+        return Ok(new { previewUrl });
+    }
+
+    [HttpGet("playlists/tracked")]
+    public async Task<IActionResult> GetTrackedPlaylists()
+    {
+        var playlists = await _context.TrackedPlaylists.ToListAsync();
+        return Ok(playlists);
+    }
+
+    [HttpPost("playlists/track")]
+    public async Task<IActionResult> TrackPlaylist([FromBody] TrackPlaylistRequest request)
+    {
+        if (string.IsNullOrEmpty(request.SpotifyId))
+            return BadRequest(new { message = "SpotifyId is required" });
+
+        var existing = await _context.TrackedPlaylists
+            .FirstOrDefaultAsync(p => p.SpotifyId == request.SpotifyId);
+
+        if (existing != null)
+            return Ok(new { message = "Playlist already tracked", playlist = existing });
+
+        var playlist = new TrackedPlaylist
+        {
+            SpotifyId = request.SpotifyId,
+            Name = request.Name ?? request.SpotifyId
+        };
+
+        _context.TrackedPlaylists.Add(playlist);
+        await _context.SaveChangesAsync();
+
+        // Immediately sync the playlist
+        await _spotifyService.SyncPlaylistAsync(request.SpotifyId);
+
+        return Ok(new { message = "Playlist tracked and synced", playlist });
+    }
 }
+
+public record TrackPlaylistRequest(string SpotifyId, string? Name = null);
