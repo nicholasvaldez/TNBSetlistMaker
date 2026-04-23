@@ -16,16 +16,23 @@ import {
   ListMode,
   Tray,
   SubmittedModal,
+  SubmitFormModal,
+  RestoreSessionInput,
   type ViewMode,
 } from "@/components/setlist-builder";
+import type { SubmitButtonState } from "@/components/setlist-builder/header";
+import { generateSetlistPdfBase64 } from "@/components/setlist-builder/setlist-pdf";
 
 const STORAGE_KEY = "tnb.curator.v2";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5152";
 
 interface SavedState {
   ratings?: [string, SongRating][];
   moments?: [string, string[]][];
   activePlaylist?: string;
   mode?: ViewMode;
+  setlistCode?: string;
+  submitState?: SubmitButtonState;
 }
 
 function loadState(): SavedState {
@@ -39,15 +46,11 @@ function loadState(): SavedState {
 function saveState(s: SavedState) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-  } catch {
-    // Ignore localStorage errors
-  }
+  } catch {}
 }
 
 function App() {
   const { songs, loading, error } = useSongs();
-
-  // Load saved state
   const saved = useMemo(() => loadState(), []);
 
   const [ratings, setRatings] = useState<Map<string, SongRating>>(() => new Map(saved.ratings || []));
@@ -58,29 +61,45 @@ function App() {
   });
   const [activePlaylist, setActivePlaylist] = useState(saved.activePlaylist || "all");
   const [mode, setMode] = useState<ViewMode>(saved.mode || "list");
-  const [submitted, setSubmitted] = useState(false);
   const [showTray, setShowTray] = useState(false);
 
-  // Derive playlists from songs
-  const playlists = useMemo<Playlist[]>(() => {
-    const map = new Map<string, Playlist>();
-    songs.forEach((s) => {
-      if (!map.has(s.playlistId)) {
-        map.set(s.playlistId, { id: s.playlistId, name: s.playlistName });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [songs]);
+  // Submit flow
+  const [setlistCode, setSetlistCode] = useState<string | undefined>(saved.setlistCode);
+  const [submitState, setSubmitState] = useState<SubmitButtonState>(saved.submitState ?? "idle");
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Persist state to localStorage
+  // On mount: check for ?editApproved= query param (bandleader clicked approval link)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const approvedCode = params.get("editApproved");
+    if (approvedCode && approvedCode === setlistCode) {
+      setSubmitState("editApproved");
+      window.history.replaceState({}, "", "/");
+    }
+  }, [setlistCode]);
+
+  // Persist state
   useEffect(() => {
     saveState({
       ratings: [...ratings.entries()],
       moments: [...moments.entries()].map(([k, v]) => [k, [...v]]),
       activePlaylist,
       mode,
+      setlistCode,
+      submitState,
     });
-  }, [ratings, moments, activePlaylist, mode]);
+  }, [ratings, moments, activePlaylist, mode, setlistCode, submitState]);
+
+  // Derive playlists from songs
+  const playlists = useMemo<Playlist[]>(() => {
+    const map = new Map<string, Playlist>();
+    songs.forEach((s) => {
+      if (!map.has(s.playlistId)) map.set(s.playlistId, { id: s.playlistId, name: s.playlistName });
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [songs]);
 
   const setRating = useCallback((id: string, bucket: SongRating) => {
     setRatings((prev) => {
@@ -89,7 +108,6 @@ function App() {
       else next.set(id, bucket);
       return next;
     });
-    // If song is being skipped/unrated, drop its moment tags
     if (!bucket || bucket === "skip") {
       setMoments((prev) => {
         if (!prev.has(id)) return prev;
@@ -127,8 +145,7 @@ function App() {
     const map: Record<string, { total: number; rated: number }> = {};
     for (const p of playlists) {
       const pSongs = songs.filter((s) => s.playlistId === p.id);
-      const rated = pSongs.filter((s) => ratings.has(s.id)).length;
-      map[p.id] = { total: pSongs.length, rated };
+      map[p.id] = { total: pSongs.length, rated: pSongs.filter((s) => ratings.has(s.id)).length };
     }
     return map;
   }, [songs, playlists, ratings]);
@@ -143,12 +160,90 @@ function App() {
   }, [moments]);
 
   const pctComplete = songs.length ? (totalCounts.rated / songs.length) * 100 : 0;
-  const allRated = totalCounts.rated === songs.length && songs.length > 0;
+  const canSubmit = ratings.size > 0;
 
   const activePlaylistName = useMemo(() => {
     if (activePlaylist === "all") return "Every song · master list";
     return playlists.find((p) => p.id === activePlaylist)?.name || "";
   }, [activePlaylist, playlists]);
+
+  // ── Submit flow ─────────────────────────────────────────────────────────────
+
+  async function handleConfirmSubmit(eventName: string, eventDate: string, clientEmail: string) {
+    setSubmitting(true);
+    try {
+      const pdfBase64 = await generateSetlistPdfBase64({
+        eventName,
+        eventDate: eventDate || undefined,
+        songs,
+        ratings,
+        moments,
+      });
+
+      const entries = [...ratings.entries()]
+        .filter(([, r]) => r !== null)
+        .map(([songId, rating]) => ({
+          songId,
+          rating,
+          momentIds: [...(moments.get(songId) ?? [])],
+        }));
+
+      const res = await fetch(`${API_BASE}/api/setlist/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventName, eventDate: eventDate || null, clientEmail, entries, pdfBase64 }),
+      });
+
+      if (!res.ok) throw new Error("Submission failed");
+      const { code } = await res.json();
+      setSetlistCode(code);
+      setSubmitState("submitted");
+      setShowSubmitForm(false);
+      setShowConfirmation(true);
+    } catch {
+      // TODO: show error toast
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleRequestEdit() {
+    if (!setlistCode) return;
+    await fetch(`${API_BASE}/api/setlist/${setlistCode}/request-edit`, { method: "POST" });
+    setSubmitState("editRequested");
+  }
+
+  async function handleRestoreSession(code: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/api/setlist/${code}`);
+    if (!res.ok) return false;
+
+    const data = await res.json();
+
+    // Repopulate ratings
+    const newRatings = new Map<string, SongRating>();
+    const newMoments = new Map<string, Set<string>>();
+    for (const entry of data.entries ?? []) {
+      newRatings.set(entry.songId, entry.rating as SongRating);
+      if (entry.momentIds?.length) newMoments.set(entry.songId, new Set(entry.momentIds));
+    }
+
+    setRatings(newRatings);
+    setMoments(newMoments);
+    setSetlistCode(code);
+    setSubmitState(
+      data.status === "Submitted"
+        ? "submitted"
+        : data.status === "EditRequested"
+          ? "editRequested"
+          : data.status === "EditApproved"
+            ? "editApproved"
+            : "idle",
+    );
+
+    return true;
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -181,8 +276,10 @@ function App() {
         pct={pctComplete}
         counts={totalCounts}
         total={songs.length}
-        allRated={allRated}
-        onSubmit={() => setSubmitted(true)}
+        canSubmit={canSubmit}
+        submitState={submitState}
+        onSubmit={() => setShowSubmitForm(true)}
+        onRequestEdit={handleRequestEdit}
         onOpenTray={() => setShowTray(true)}
       />
 
@@ -243,10 +340,17 @@ function App() {
         counts={totalCounts}
         total={songs.length}
         pct={pctComplete}
-        allRated={allRated}
+        canSubmit={canSubmit}
+        submitState={submitState}
         onOpenTray={() => setShowTray(true)}
-        onSubmit={() => setSubmitted(true)}
+        onSubmit={() => setShowSubmitForm(true)}
+        onRequestEdit={handleRequestEdit}
       />
+
+      {/* Restore session — shown in footer area */}
+      <div className="fixed bottom-16 sm:bottom-4 left-4 z-10">
+        {submitState === "idle" && <RestoreSessionInput onRestore={handleRestoreSession} />}
+      </div>
 
       {showTray && (
         <Tray
@@ -259,31 +363,24 @@ function App() {
         />
       )}
 
-      {submitted && (
-        <SubmittedModal onClose={() => setSubmitted(false)} counts={totalCounts} momentCounts={momentCounts} />
+      {showSubmitForm && (
+        <SubmitFormModal
+          onClose={() => setShowSubmitForm(false)}
+          onConfirm={handleConfirmSubmit}
+          isResubmit={submitState === "editApproved"}
+          submitting={submitting}
+        />
       )}
 
-      <ResetButton
-        onReset={() => {
-          setRatings(new Map());
-          setMoments(new Map());
-          setSubmitted(false);
-        }}
-      />
+      {showConfirmation && (
+        <SubmittedModal
+          onClose={() => setShowConfirmation(false)}
+          counts={totalCounts}
+          momentCounts={momentCounts}
+          setlistCode={setlistCode}
+        />
+      )}
     </div>
-  );
-}
-
-function ResetButton({ onReset }: { onReset: () => void }) {
-  return (
-    <button
-      onClick={() => {
-        if (confirm("Clear all ratings and tags?")) onReset();
-      }}
-      className="fixed bottom-4 left-4 z-10 text-[10px] text-bone/30 hover:text-bone/60 font-mono"
-    >
-      reset demo
-    </button>
   );
 }
 

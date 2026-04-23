@@ -1,16 +1,70 @@
 import { LogoMark } from "./logo-mark";
 import { GoldProgress } from "./gold-progress";
 
+export type SubmitButtonState = "idle" | "submitted" | "editRequested" | "editApproved";
+
 interface HeaderProps {
   pct: number;
   counts: { must: number; maybe: number; skip: number; rated: number };
   total: number;
-  allRated: boolean;
+  canSubmit: boolean;
+  submitState: SubmitButtonState;
   onSubmit: () => void;
+  onRequestEdit: () => void;
   onOpenTray: () => void;
 }
 
-export function Header({ pct, counts, total, allRated, onSubmit, onOpenTray }: HeaderProps) {
+export function Header({
+  pct,
+  counts,
+  total,
+  canSubmit,
+  submitState,
+  onSubmit,
+  onRequestEdit,
+  onOpenTray,
+}: HeaderProps) {
+  function renderSubmitButton() {
+    if (submitState === "submitted") {
+      return (
+        <button
+          onClick={onRequestEdit}
+          className="rounded-md px-3 sm:px-4 py-2 font-medium text-sm border hairline text-bone/70 hover:text-bone hover:bg-bone/5"
+        >
+          Request edit
+        </button>
+      );
+    }
+    if (submitState === "editRequested") {
+      return (
+        <button
+          disabled
+          className="rounded-md px-3 sm:px-4 py-2 font-medium text-sm border hairline text-bone/30 cursor-not-allowed"
+        >
+          Edit requested…
+        </button>
+      );
+    }
+    if (submitState === "editApproved") {
+      return (
+        <button onClick={onSubmit} className="chip-gold rounded-md px-3 sm:px-4 py-2 font-medium text-sm">
+          Submit changes
+        </button>
+      );
+    }
+    // idle
+    return (
+      <button
+        onClick={onSubmit}
+        disabled={!canSubmit}
+        className={`rounded-md px-3 sm:px-4 py-2 font-medium text-sm ${
+          canSubmit ? "chip-gold" : "border hairline text-bone/35 cursor-not-allowed"
+        }`}
+      >
+        Submit to band
+      </button>
+    );
+  }
   return (
     <header className="border-b hairline sticky top-0 z-20 backdrop-blur bg-tar/80">
       <div className="max-w-350 mx-auto px-4 sm:px-6 flex items-center gap-3 sm:gap-4">
@@ -41,15 +95,7 @@ export function Header({ pct, counts, total, allRated, onSubmit, onOpenTray }: H
             {counts.rated}
           </span>
         </button>
-        <button
-          onClick={onSubmit}
-          disabled={!allRated}
-          className={`rounded-md px-3 sm:px-4 py-2 font-medium text-sm ${
-            allRated ? "chip-gold" : "border hairline text-bone/35 cursor-not-allowed"
-          }`}
-        >
-          Submit to band
-        </button>
+        {renderSubmitButton()}
       </div>
       <div className="md:hidden px-4 pb-3">
         <div className="flex justify-between text-[10px] text-bone/55 mb-1">
