@@ -25,3 +25,5 @@ export { Tray } from "./tray";
 export { SubmittedModal } from "./submitted-modal";
 export { SubmitFormModal } from "./submit-form-modal";
 export { RestoreSessionInput } from "./restore-session-input";
+export { AppModals } from "./app-modals";
+export { SongBrowser } from "./song-browser";

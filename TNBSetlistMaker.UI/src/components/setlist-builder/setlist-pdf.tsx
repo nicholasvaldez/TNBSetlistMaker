@@ -137,12 +137,7 @@ function SetlistPdfDocument({ eventName, eventDate, setlistCode, songs, ratings,
                     <View style={S.songBody}>
                       <Text style={S.songTitle}>{song.title}</Text>
                       <Text style={S.songArtist}>{song.artist}</Text>
-                      {song.year && (
-                        <Text style={S.songMeta}>
-                          {song.year}
-                          {song.playlistName ? ` · ${song.playlistName}` : ""}
-                        </Text>
-                      )}
+                      {song.playlistName && <Text style={S.songMeta}>{song.playlistName}</Text>}
                       {songMoments.length > 0 && (
                         <View style={S.songMoments}>
                           {songMoments.map((mid) => (

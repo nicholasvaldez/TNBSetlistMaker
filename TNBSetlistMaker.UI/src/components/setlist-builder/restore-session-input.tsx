@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface RestoreSessionInputProps {
   onRestore: (code: string) => Promise<boolean>;
@@ -9,65 +9,76 @@ export function RestoreSessionInput({ onRestore }: RestoreSessionInputProps) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close popover on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setError(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
 
   async function handleRestore(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = code.trim().toUpperCase();
     if (!trimmed) return;
-
     setLoading(true);
     setError(null);
     const success = await onRestore(trimmed);
     setLoading(false);
-
     if (!success) {
-      setError("Code not found. Check your confirmation email and try again.");
+      setError("Code not found. Check your confirmation email.");
     } else {
       setOpen(false);
       setCode("");
     }
   }
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="text-xs text-bone/35 hover:text-bone/60 underline underline-offset-2"
-      >
-        Already submitted? Restore your session
-      </button>
-    );
-  }
-
   return (
-    <form onSubmit={handleRestore} className="flex items-center gap-2 flex-wrap">
-      <input
-        type="text"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        placeholder="TNB-XXXX"
-        maxLength={8}
-        className="rounded-md border hairline bg-ink/40 text-bone px-3 py-1.5 text-xs w-28 placeholder:text-bone/30 font-mono tracking-widest focus:outline-none focus:ring-1 focus:ring-gold"
-        autoFocus
-      />
+    <div ref={containerRef} className="relative">
+      {/* ? button */}
       <button
-        type="submit"
-        disabled={loading}
-        className="text-xs px-3 py-1.5 rounded-md border hairline text-bone/60 hover:text-bone"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Restore a previous session"
+        className="w-7 h-7 rounded-full border hairline flex items-center justify-center text-bone/35 hover:text-bone/70 hover:border-bone/30 text-xs font-mono transition-colors"
       >
-        {loading ? "…" : "Restore"}
+        ?
       </button>
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(false);
-          setError(null);
-        }}
-        className="text-xs text-bone/35 hover:text-bone/60"
-      >
-        Cancel
-      </button>
-      {error && <p className="w-full text-[11px] text-skip">{error}</p>}
-    </form>
+
+      {/* Popover */}
+      {open && (
+        <div className="absolute bottom-9 left-0 w-64 paper rounded-xl ring-gold p-4 fade-up shadow-xl">
+          <p className="stamp mb-2">Restore session</p>
+          <p className="text-[11px] text-bone/55 mb-3 leading-snug">
+            Already submitted? Enter your code from the confirmation email.
+          </p>
+          <form onSubmit={handleRestore} className="flex flex-col gap-2">
+            <input
+              type="text"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="TNB-XXXX"
+              maxLength={8}
+              autoFocus
+              className="rounded-md border hairline bg-ink/40 text-bone px-3 py-1.5 text-xs w-full placeholder:text-bone/30 font-mono tracking-widest focus:outline-none focus:ring-1 focus:ring-gold"
+            />
+            {error && <p className="text-[11px] text-skip leading-snug">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="chip-gold rounded-md px-3 py-1.5 text-xs font-medium w-full"
+            >
+              {loading ? "Restoring…" : "Restore session"}
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }
