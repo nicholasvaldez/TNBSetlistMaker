@@ -165,8 +165,9 @@ public class SpotifyService : ISpotifyService
         var token = await GetOrRefreshAccessTokenAsync();
 
         // 1. Use the /items endpoint (Feb 2026 API update)
-        var fields = "items(item(id,name,duration_ms,preview_url,artists(name),album(images,release_date))),next";
-        var baseUrl = $"https://api.spotify.com/v1/playlists/{playlistId}/items?market=US&fields={fields}";
+        // Explicitly enumerate image sub-fields — Spotify's fields filter requires this for nested objects
+        var fields = "items(item(id,name,duration_ms,preview_url,artists(name),album(images(url,width,height),release_date))),next";
+        var baseUrl = $"https://api.spotify.com/v1/playlists/{playlistId}/items?market=US&fields={Uri.EscapeDataString(fields)}";
 
         var request = new HttpRequestMessage(HttpMethod.Get, baseUrl);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);

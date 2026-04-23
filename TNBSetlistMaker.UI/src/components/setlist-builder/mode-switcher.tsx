@@ -6,9 +6,9 @@ interface ModeSwitcherProps {
 }
 
 const MODES = [
-  { id: "stack" as ViewMode, label: "Stack", icon: "▣" },
-  { id: "grid" as ViewMode, label: "Grid", icon: "⚏" },
   { id: "list" as ViewMode, label: "List", icon: "☰" },
+  { id: "grid" as ViewMode, label: "Grid", icon: "⚏" },
+  { id: "stack" as ViewMode, label: "Stack", icon: "▣" },
 ];
 
 export function ModeSwitcher({ mode, setMode }: ModeSwitcherProps) {

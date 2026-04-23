@@ -32,7 +32,7 @@ export function StackMode({
 
   const filtered = useMemo(
     () => songs.filter((s) => activePlaylist === "all" || s.playlistId === activePlaylist),
-    [songs, activePlaylist]
+    [songs, activePlaylist],
   );
   const unrated = useMemo(() => filtered.filter((s) => !ratings.get(s.id)), [filtered, ratings]);
 
@@ -132,7 +132,7 @@ export function StackMode({
   const hint: SongRating = x > 50 ? "must" : x < -50 ? "skip" : y < -50 ? "maybe" : null;
 
   return (
-    <div className="relative w-full max-w-[640px] mx-auto">
+    <div className="relative w-full max-w-160 mx-auto">
       <div className="flex items-center justify-between mb-4 px-1">
         <div className="stamp">
           Track {idx + 1} / {unrated.length} · this stack
@@ -144,7 +144,7 @@ export function StackMode({
         </div>
       </div>
 
-      <div className="relative h-[560px] sm:h-[620px]">
+      <div className="relative h-140 sm:h-155">
         {next2 && <StackCard song={next2} depth={2} />}
         {next1 && <StackCard song={next1} depth={1} />}
 
@@ -160,7 +160,15 @@ export function StackMode({
             transition: drag.active ? "none" : "transform 280ms cubic-bezier(0.2,0.9,0.2,1)",
           }}
         >
-          <HeroCard song={current} playing={playing} setPlaying={setPlaying} hint={hint} playlists={playlists} previewUrl={previewUrl} previewLoading={previewLoading} />
+          <HeroCard
+            song={current}
+            playing={playing}
+            setPlaying={setPlaying}
+            hint={hint}
+            playlists={playlists}
+            previewUrl={previewUrl}
+            previewLoading={previewLoading}
+          />
         </div>
 
         <EdgeHint side="left" active={hint === "skip"} bucket="skip" />
@@ -178,9 +186,7 @@ export function StackMode({
         <div className="mt-5 paper rounded-xl ring-gold p-4 fade-up">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <div className="stamp">
-                Marked {BUCKET_BY_ID[justRated.bucket!]?.label} — is this for a moment?
-              </div>
+              <div className="stamp">Marked {BUCKET_BY_ID[justRated.bucket!]?.label} — is this for a moment?</div>
               <div className="text-xs text-bone/55 mt-0.5">Optional. Tap any that fit.</div>
             </div>
             <button onClick={advance} className="chip-gold rounded-md px-3 py-1.5 text-sm font-medium">
@@ -248,13 +254,17 @@ function HeroCard({
           {song.title}
           {playing && <MiniEq active />}
         </h1>
-        <div className="text-bone/75 mt-1 italic font-display text-lg">
-          by {song.artist}
-        </div>
+        <div className="text-bone/75 mt-1 italic font-display text-lg">by {song.artist}</div>
       </div>
 
       <div className="absolute left-6 right-6 bottom-5" onPointerDown={(e) => e.stopPropagation()}>
-        <Preview song={song} playing={playing} setPlaying={setPlaying} previewUrl={previewUrl} previewLoading={previewLoading} />
+        <Preview
+          song={song}
+          playing={playing}
+          setPlaying={setPlaying}
+          previewUrl={previewUrl}
+          previewLoading={previewLoading}
+        />
       </div>
 
       {hint && <HintStamp bucket={hint} />}
@@ -316,7 +326,15 @@ function HintStamp({ bucket }: { bucket: NonNullable<SongRating> }) {
   );
 }
 
-function EdgeHint({ side, active, bucket }: { side: "left" | "right" | "top"; active: boolean; bucket: NonNullable<SongRating> }) {
+function EdgeHint({
+  side,
+  active,
+  bucket,
+}: {
+  side: "left" | "right" | "top";
+  active: boolean;
+  bucket: NonNullable<SongRating>;
+}) {
   const b = BUCKET_BY_ID[bucket];
   const pos = {
     left: "left-0 top-1/2 -translate-y-1/2",
@@ -350,7 +368,7 @@ function StackEmpty({ filtered, ratings }: { filtered: Song[]; ratings: Map<stri
   });
 
   return (
-    <div className="max-w-[640px] mx-auto paper rounded-2xl p-8 sm:p-12 text-center ring-gold">
+    <div className="max-w-160 mx-auto paper rounded-2xl p-8 sm:p-12 text-center ring-gold">
       <div className="stamp mb-3">Stack cleared</div>
       <div className="font-display text-4xl text-bone mb-2">You called every tune.</div>
       <p className="text-bone/65 max-w-sm mx-auto">

@@ -57,7 +57,7 @@ function App() {
     return m;
   });
   const [activePlaylist, setActivePlaylist] = useState(saved.activePlaylist || "all");
-  const [mode, setMode] = useState<ViewMode>(saved.mode || "stack");
+  const [mode, setMode] = useState<ViewMode>(saved.mode || "list");
   const [submitted, setSubmitted] = useState(false);
   const [showTray, setShowTray] = useState(false);
 
@@ -153,7 +153,7 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen grain">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-20">
+        <div className="max-w-350 mx-auto px-4 sm:px-6 py-20">
           <div className="flex flex-col gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full rounded-xl bg-bone/5" />
@@ -186,8 +186,13 @@ function App() {
         onOpenTray={() => setShowTray(true)}
       />
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pb-40">
-        <PlaylistRail playlists={playlists} active={activePlaylist} setActive={setActivePlaylist} counts={perPlaylist} />
+      <div className="max-w-350 mx-auto px-4 sm:px-6 pb-40">
+        <PlaylistRail
+          playlists={playlists}
+          active={activePlaylist}
+          setActive={setActivePlaylist}
+          counts={perPlaylist}
+        />
 
         <div className="flex items-center justify-between mt-6 mb-2">
           <div>
