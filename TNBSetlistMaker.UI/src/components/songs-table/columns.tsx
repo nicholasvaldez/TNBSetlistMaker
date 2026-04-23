@@ -44,7 +44,19 @@ export const columns: ColumnDef<Song>[] = [
         </Button>
       );
     },
-    cell: ({ row }) => <span className="font-medium">{row.getValue("title")}</span>,
+    cell: ({ row }) => {
+      const song = row.original;
+      return (
+        <div className="flex items-center gap-2.5 min-w-0">
+          {song.albumImageUrl ? (
+            <img src={song.albumImageUrl} alt="" className="w-9 h-9 rounded object-cover shrink-0" />
+          ) : (
+            <div className="w-9 h-9 rounded bg-muted shrink-0" />
+          )}
+          <span className="font-medium truncate">{song.title}</span>
+        </div>
+      );
+    },
   },
   {
     id: "rating",

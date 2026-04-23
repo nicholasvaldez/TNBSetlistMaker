@@ -31,7 +31,7 @@ export function GridMode({
 }: GridModeProps) {
   const filtered = useMemo(
     () => songs.filter((s) => activePlaylist === "all" || s.playlistId === activePlaylist),
-    [songs, activePlaylist]
+    [songs, activePlaylist],
   );
   const [openId, setOpenId] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -63,7 +63,7 @@ export function GridMode({
                     : undefined,
                 }}
               >
-                <img src={artDataUrl(song)} alt="" className="w-full h-full object-cover" />
+                <img src={song.albumImageUrl || artDataUrl(song)} alt="" className="w-full h-full object-cover" />
               </div>
               <div className="mt-2 px-0.5">
                 <div className="text-sm font-medium text-bone truncate">{song.title}</div>
@@ -109,7 +109,13 @@ export function GridMode({
                 </button>
               </div>
               <div className="mt-3">
-                <Preview song={open} playing={playing} setPlaying={setPlaying} previewUrl={previewUrl} previewLoading={previewLoading} />
+                <Preview
+                  song={open}
+                  playing={playing}
+                  setPlaying={setPlaying}
+                  previewUrl={previewUrl}
+                  previewLoading={previewLoading}
+                />
               </div>
               <div className="mt-3">
                 <BucketButtons
@@ -127,7 +133,7 @@ export function GridMode({
               )}
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </div>
   );

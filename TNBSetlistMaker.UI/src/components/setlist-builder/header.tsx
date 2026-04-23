@@ -13,15 +13,15 @@ interface HeaderProps {
 export function Header({ pct, counts, total, allRated, onSubmit, onOpenTray }: HeaderProps) {
   return (
     <header className="border-b hairline sticky top-0 z-20 backdrop-blur bg-tar/80">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-4">
-        <LogoMark size={40} />
+      <div className="max-w-350 mx-auto px-4 sm:px-6 flex items-center gap-3 sm:gap-4">
+        <LogoMark size={110} />
         <div className="flex-1 min-w-0">
           <div className="stamp leading-none">The Nashville Band</div>
           <h1 className="font-display text-xl sm:text-2xl text-bone leading-tight">
             Set the Night — <span className="italic text-goldlight">Song Curator</span>
           </h1>
         </div>
-        <div className="hidden md:flex items-center gap-3 min-w-[220px]">
+        <div className="hidden md:flex items-center gap-3 min-w-55">
           <div className="flex-1">
             <div className="flex justify-between text-[10px] text-bone/55 mb-1">
               <span className="stamp">
