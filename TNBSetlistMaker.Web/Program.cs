@@ -28,6 +28,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         b => b.MigrationsAssembly("TNBSetlistMaker.Dal")));
         // Registers the interface and implementation, and configures HttpClient for it
 builder.Services.AddHttpClient<ISpotifyService, SpotifyService>();
+builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+builder.Services.AddScoped<ISetlistService>(sp =>
+    new SetlistService(
+        sp.GetRequiredService<AppDbContext>(),
+        sp.GetRequiredService<IEmailService>(),
+        builder.Configuration["App:BaseUrl"] ?? "http://localhost:5152"));
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()

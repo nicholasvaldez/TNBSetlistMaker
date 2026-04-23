@@ -23,3 +23,5 @@ export { ListMode } from "./list-mode";
 // Modals
 export { Tray } from "./tray";
 export { SubmittedModal } from "./submitted-modal";
+export { SubmitFormModal } from "./submit-form-modal";
+export { RestoreSessionInput } from "./restore-session-input";

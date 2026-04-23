@@ -6,9 +6,10 @@ interface SubmittedModalProps {
   onClose: () => void;
   counts: { must: number; maybe: number; skip: number; rated: number };
   momentCounts: Record<string, number>;
+  setlistCode?: string;
 }
 
-export function SubmittedModal({ onClose, counts, momentCounts }: SubmittedModalProps) {
+export function SubmittedModal({ onClose, counts, momentCounts, setlistCode }: SubmittedModalProps) {
   const taggedMoments = MOMENTS.filter((m) => momentCounts[m.id] > 0);
 
   return (
@@ -19,9 +20,16 @@ export function SubmittedModal({ onClose, counts, momentCounts }: SubmittedModal
         </div>
         <div className="stamp mb-2">Sent to the band</div>
         <h2 className="font-display text-4xl text-bone mb-2">Thank you.</h2>
-        <p className="text-bone/70 mb-6">
-          We'll build your setlist from your picks and share a draft within the week.
-        </p>
+        <p className="text-bone/70 mb-4">We'll build your setlist from your picks and share a draft within the week.</p>
+        {setlistCode && (
+          <div className="rounded-lg border hairline bg-gold/5 px-4 py-3 mb-4">
+            <div className="stamp mb-1">Your reference code</div>
+            <div className="font-mono text-2xl text-goldlight tracking-widest">{setlistCode}</div>
+            <p className="text-[11px] text-bone/45 mt-1">
+              Save this — we also emailed it to you. Use it to restore your session or request edits.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-3 gap-2 mb-4">
           {BUCKETS.map((b) => (
             <div key={b.id} className="rounded-lg border hairline p-3">
