@@ -1,72 +1,90 @@
 import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
 import type { Song } from "@/types/song";
 import type { SongRating } from "@/types/rating";
+import type { CustomRequest } from "@/types/custom-request";
 import { MOMENTS } from "@/types/moment";
-
-// ── Styles (light mode — white paper, dark text) ──────────────────────────────
 
 const S = StyleSheet.create({
   page: {
     backgroundColor: "#ffffff",
-    paddingVertical: 48,
-    paddingHorizontal: 52,
+    paddingVertical: 36,
+    paddingHorizontal: 44,
     fontFamily: "Helvetica",
     color: "#1a1a1a",
   },
-  // Header
   headerRow: { flexDirection: "row", alignItems: "flex-end", marginBottom: 4 },
   brand: { fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: 1.5 },
-  title: { fontSize: 22, fontFamily: "Helvetica-Bold", marginBottom: 2 },
+  title: { fontSize: 18, fontFamily: "Helvetica-Bold", marginBottom: 2 },
   subtitle: { fontSize: 11, color: "#555", marginBottom: 2 },
-  divider: { borderBottomWidth: 1, borderBottomColor: "#e0e0e0", marginVertical: 16 },
-  metaRow: { flexDirection: "row", gap: 20, marginBottom: 16 },
+  divider: { borderBottomWidth: 1, borderBottomColor: "#e0e0e0", marginVertical: 10 },
+  metaRow: { flexDirection: "row", gap: 20, marginBottom: 10 },
   metaLabel: { fontSize: 9, color: "#888", textTransform: "uppercase", letterSpacing: 0.8 },
   metaValue: { fontSize: 11, marginTop: 2 },
-  // Section
-  sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8, marginTop: 16 },
-  sectionDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  sectionTitle: { fontSize: 13, fontFamily: "Helvetica-Bold" },
-  sectionCount: { fontSize: 10, color: "#888", marginLeft: 6 },
-  // Song row
+  sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 5, marginTop: 10 },
+  sectionDot: { width: 7, height: 7, borderRadius: 3.5, marginRight: 6 },
+  sectionTitle: { fontSize: 11, fontFamily: "Helvetica-Bold" },
+  sectionCount: { fontSize: 9, color: "#888", marginLeft: 5 },
   songRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 7,
+    paddingVertical: 4,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
   },
-  songIndex: { width: 24, fontSize: 9, color: "#bbb", paddingTop: 1 },
-  songBody: { flex: 1 },
-  songTitle: { fontSize: 11, fontFamily: "Helvetica-Bold" },
-  songArtist: { fontSize: 9, color: "#555", marginTop: 1 },
-  songMeta: { fontSize: 9, color: "#999", marginTop: 1 },
-  songMoments: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 3 },
-  momentTag: {
-    fontSize: 8,
-    color: "#555",
-    backgroundColor: "#f5f5f5",
+  songIndex: { width: 20, fontSize: 8, color: "#bbb", paddingTop: 1 },
+  songContent: { flex: 1 },
+  songTopRow: { flexDirection: "row", alignItems: "center" },
+  songTitleArtist: { flex: 1 },
+  songTitle: { fontSize: 10, fontFamily: "Helvetica-Bold" },
+  songArtist: { fontSize: 8, color: "#555", marginTop: 1 },
+  songMeta: { fontSize: 8, color: "#999", marginTop: 1 },
+  playlistBadge: {
+    backgroundColor: "#efefef",
+    borderRadius: 3,
     paddingHorizontal: 5,
     paddingVertical: 2,
-    borderRadius: 3,
+    marginLeft: 6,
+    marginRight: 4,
+    alignSelf: "center",
   },
-  songDuration: { width: 36, fontSize: 9, color: "#999", textAlign: "right", paddingTop: 1 },
-  // Footer
+  playlistBadgeText: { fontSize: 7, color: "#777" },
+  songMoments: { flexDirection: "row", flexWrap: "wrap", gap: 3, marginLeft: 6, alignSelf: "center" },
+  momentTag: {
+    fontSize: 7,
+    color: "#555",
+    backgroundColor: "#f5f5f5",
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 2,
+  },
+  songDuration: { width: 32, fontSize: 8, color: "#999", textAlign: "right", paddingTop: 1 },
+  requestRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  requestBody: { flex: 1 },
+  requestTitle: { fontSize: 10, fontFamily: "Helvetica-Bold" },
+  requestArtist: { fontSize: 8, color: "#555", marginTop: 1 },
+  requestLink: { fontSize: 7, color: "#4a6fa5", marginTop: 2 },
+  requestNote: { fontSize: 8, color: "#777", marginTop: 2, fontStyle: "italic" },
   footer: {
     position: "absolute",
-    bottom: 32,
-    left: 52,
-    right: 52,
+    bottom: 24,
+    left: 44,
+    right: 44,
     flexDirection: "row",
     justifyContent: "space-between",
   },
   footerText: { fontSize: 8, color: "#bbb" },
 });
 
-// Bucket display config
 const BUCKET_CONFIG: Record<string, { label: string; color: string }> = {
   must: { label: "Must Play", color: "#4a7a40" },
   maybe: { label: "Maybe", color: "#b07030" },
-  skip: { label: "Skip", color: "#a04030" },
+  skip: { label: "Do not play", color: "#a04030" },
 };
 
 const momentLabel = (id: string) => MOMENTS.find((m) => m.id === id)?.label ?? id;
@@ -78,9 +96,18 @@ interface SetlistPdfDocumentProps {
   songs: Song[];
   ratings: Map<string, SongRating>;
   moments: Map<string, Set<string>>;
+  customRequests?: CustomRequest[];
 }
 
-function SetlistPdfDocument({ eventName, eventDate, setlistCode, songs, ratings, moments }: SetlistPdfDocumentProps) {
+function SetlistPdfDocument({
+  eventName,
+  eventDate,
+  setlistCode,
+  songs,
+  ratings,
+  moments,
+  customRequests,
+}: SetlistPdfDocumentProps) {
   const grouped: Record<string, Song[]> = { must: [], maybe: [], skip: [] };
   songs.forEach((s) => {
     const r = ratings.get(s.id);
@@ -134,27 +161,68 @@ function SetlistPdfDocument({ eventName, eventDate, setlistCode, songs, ratings,
                 return (
                   <View key={song.id} style={S.songRow} wrap={false}>
                     <Text style={S.songIndex}>{i + 1}</Text>
-                    <View style={S.songBody}>
-                      <Text style={S.songTitle}>{song.title}</Text>
-                      <Text style={S.songArtist}>{song.artist}</Text>
-                      {song.playlistName && <Text style={S.songMeta}>{song.playlistName}</Text>}
-                      {songMoments.length > 0 && (
-                        <View style={S.songMoments}>
-                          {songMoments.map((mid) => (
-                            <Text key={mid} style={S.momentTag}>
-                              {momentLabel(mid)}
-                            </Text>
-                          ))}
+                    <View style={S.songContent}>
+                      <View style={S.songTopRow}>
+                        <View style={S.songTitleArtist}>
+                          <Text style={S.songTitle}>{song.title}</Text>
+                          <Text style={S.songArtist}>{song.artist}</Text>
                         </View>
-                      )}
+                        {songMoments.length > 0 && (
+                          <View style={S.songMoments}>
+                            {songMoments.map((mid) => (
+                              <Text key={mid} style={S.momentTag}>
+                                {momentLabel(mid)}
+                              </Text>
+                            ))}
+                          </View>
+                        )}
+                        {song.playlistName && (
+                          <View style={S.playlistBadge}>
+                            <Text style={S.playlistBadgeText}>{song.playlistName}</Text>
+                          </View>
+                        )}
+                        {song.duration && <Text style={S.songDuration}>{song.duration}</Text>}
+                      </View>
                     </View>
-                    {song.duration && <Text style={S.songDuration}>{song.duration}</Text>}
                   </View>
                 );
               })}
             </View>
           );
         })}
+
+        {/* Song Requests */}
+        {customRequests && customRequests.length > 0 && (
+          <View>
+            <View style={S.sectionHeader}>
+              <View style={[S.sectionDot, { backgroundColor: "#4a6fa5" }]} />
+              <Text style={[S.sectionTitle, { color: "#4a6fa5" }]}>Song Requests</Text>
+              <Text style={S.sectionCount}>
+                {customRequests.length} request{customRequests.length !== 1 ? "s" : ""}
+              </Text>
+            </View>
+            {customRequests.map((req, i) => (
+              <View key={req.id} style={S.requestRow} wrap={false}>
+                <Text style={S.songIndex}>{i + 1}</Text>
+                <View style={S.requestBody}>
+                  <View style={S.songTopRow}>
+                    <View style={S.songTitleArtist}>
+                      <Text style={S.requestTitle}>{req.title}</Text>
+                      <Text style={S.requestArtist}>{req.artist}</Text>
+                    </View>
+                    {req.momentId && (
+                      <View style={S.songMoments}>
+                        <Text style={S.momentTag}>{momentLabel(req.momentId)}</Text>
+                      </View>
+                    )}
+                  </View>
+                  {req.linkUrl && <Text style={S.requestLink}>{req.linkUrl}</Text>}
+                  {req.note && <Text style={S.requestNote}>"{req.note}"</Text>}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Footer */}
         <View style={S.footer} fixed>
@@ -165,8 +233,6 @@ function SetlistPdfDocument({ eventName, eventDate, setlistCode, songs, ratings,
     </Document>
   );
 }
-
-// ── Export: generate base64 PDF string ────────────────────────────────────────
 
 export async function generateSetlistPdfBase64(props: SetlistPdfDocumentProps): Promise<string> {
   const blob = await pdf(<SetlistPdfDocument {...props} />).toBlob();

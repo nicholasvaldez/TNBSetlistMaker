@@ -55,11 +55,12 @@ export function StackMode({
   const next1 = unrated[idx + 1];
   const next2 = unrated[idx + 2];
 
-  // Fetch preview URL for current song on-demand
   const { previewUrl, loading: previewLoading } = usePreviewUrl(current?.spotifyId);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
       if (!current) return;
       if (justRated) {
         if (e.key === "Enter" || e.key === " ") {

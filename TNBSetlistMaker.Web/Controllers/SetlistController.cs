@@ -52,7 +52,13 @@ public class SetlistController : ControllerBase
         var approved = await _setlistService.ApproveEditAsync(code, token);
         if (!approved) return BadRequest(new { message = "Invalid or expired approval link." });
 
-        // Redirect to the frontend with a success param so the UI can update state
-        return Redirect($"{_frontendUrl}/?editApproved={code}");
+        return Content("""
+            <html>
+            <body style="font-family:Georgia,serif;text-align:center;padding:60px;color:#1a1a1a;">
+              <h2 style="font-size:24px;">&#10003; Edit request approved</h2>
+              <p style="color:#555;font-size:15px;">The client has been notified by email and can now update their picks.</p>
+            </body>
+            </html>
+            """, "text/html");
     }
 }

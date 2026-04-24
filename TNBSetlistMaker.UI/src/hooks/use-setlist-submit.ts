@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Song } from "@/types/song";
 import type { SongRating } from "@/types/rating";
+import type { CustomRequest } from "@/types/custom-request";
 import type { SubmitButtonState } from "@/components/setlist-builder/header";
 import { generateSetlistPdfBase64 } from "@/components/setlist-builder/setlist-pdf";
 
@@ -10,9 +11,12 @@ interface UseSetlistSubmitOptions {
   songs: Song[];
   ratings: Map<string, SongRating>;
   moments: Map<string, Set<string>>;
+  customRequests: CustomRequest[];
   initialCode: string | undefined;
   initialSubmitState: SubmitButtonState;
   onRestoreRatings: (ratings: Map<string, SongRating>, moments: Map<string, Set<string>>) => void;
+  onRestoreCustomRequests: (customRequests: CustomRequest[]) => void;
+  onRestoreEventDetails: (eventName: string, eventDate: string, clientEmail: string) => void;
 }
 
 export interface SetlistSubmitState {
@@ -32,9 +36,12 @@ export function useSetlistSubmit({
   songs,
   ratings,
   moments,
+  customRequests,
   initialCode,
   initialSubmitState,
   onRestoreRatings,
+  onRestoreCustomRequests,
+  onRestoreEventDetails,
 }: UseSetlistSubmitOptions): SetlistSubmitState {
   const [setlistCode, setSetlistCode] = useState<string | undefined>(initialCode);
   const [submitState, setSubmitState] = useState<SubmitButtonState>(initialSubmitState);
@@ -46,10 +53,18 @@ export function useSetlistSubmit({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const approvedCode = params.get("editApproved");
-    if (approvedCode && approvedCode === setlistCode) {
-      setSubmitState("editApproved");
-      window.history.replaceState({}, "", "/");
-    }
+    if (!approvedCode || approvedCode !== setlistCode) return;
+
+    setSubmitState("editApproved");
+    window.history.replaceState({}, "", "/");
+
+    fetch(`${API_BASE}/api/setlist/${approvedCode}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          onRestoreEventDetails(data.eventName ?? "", data.eventDate ?? "", data.clientEmail ?? "");
+        }
+      });
   }, [setlistCode]);
 
   async function handleConfirmSubmit(eventName: string, eventDate: string, clientEmail: string) {
@@ -61,6 +76,7 @@ export function useSetlistSubmit({
         songs,
         ratings,
         moments,
+        customRequests,
       });
 
       const entries = [...ratings.entries()]
@@ -71,10 +87,27 @@ export function useSetlistSubmit({
           momentIds: [...(moments.get(songId) ?? [])],
         }));
 
+      const submittableRequests = customRequests
+        .filter((r) => r.title.trim() && r.artist.trim())
+        .map(({ title, artist, linkUrl, momentId, note }) => ({
+          title: title.trim(),
+          artist: artist.trim(),
+          linkUrl: linkUrl?.trim() || undefined,
+          momentId: momentId || undefined,
+          note: note?.trim() || undefined,
+        }));
+
       const res = await fetch(`${API_BASE}/api/setlist/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventName, eventDate: eventDate || null, clientEmail, entries, pdfBase64 }),
+        body: JSON.stringify({
+          eventName,
+          eventDate: eventDate || null,
+          clientEmail,
+          entries,
+          customRequests: submittableRequests,
+          pdfBase64,
+        }),
       });
 
       if (!res.ok) throw new Error("Submission failed");
@@ -110,6 +143,19 @@ export function useSetlistSubmit({
     }
 
     onRestoreRatings(newRatings, newMoments);
+    onRestoreCustomRequests(
+      (data.customRequests ?? []).map(
+        (r: { title: string; artist: string; linkUrl?: string; momentId?: string; note?: string }) => ({
+          id: crypto.randomUUID(),
+          title: r.title,
+          artist: r.artist,
+          linkUrl: r.linkUrl,
+          momentId: r.momentId,
+          note: r.note,
+        }),
+      ),
+    );
+    onRestoreEventDetails(data.eventName ?? "", data.eventDate ?? "", data.clientEmail ?? "");
     setSetlistCode(code);
     setSubmitState(
       data.status === "Submitted"

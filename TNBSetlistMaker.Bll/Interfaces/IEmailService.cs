@@ -18,4 +18,10 @@ public interface IEmailService
         string eventName,
         string setlistCode,
         string approvalLink);
+
+    Task SendEditApprovedToClientAsync(
+        string clientEmail,
+        string eventName,
+        string setlistCode,
+        string editLink);
 }

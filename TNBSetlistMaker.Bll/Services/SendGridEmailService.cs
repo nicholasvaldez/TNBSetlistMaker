@@ -12,7 +12,7 @@ public class SendGridEmailService : IEmailService
     private readonly ILogger<SendGridEmailService> _logger;
     private const string BandleaderEmail = "nickvee2012@gmail.com";
     private const string FromEmail = "nickvee2012@gmail.com";
-    private const string FromName = "The Nashville Band · Song Curator";
+    private const string FromName = "The Nashville Band";
 
     public SendGridEmailService(IConfiguration config, ILogger<SendGridEmailService> logger)
     {
@@ -83,7 +83,23 @@ public class SendGridEmailService : IEmailService
         _logger.LogInformation("Edit request email status: {Status}", r3.StatusCode);
     }
 
-    // ── HTML templates ──────────────────────────────────────────────────────
+    public async Task SendEditApprovedToClientAsync(
+        string clientEmail,
+        string eventName,
+        string setlistCode,
+        string editLink)
+    {
+        var msg = new SendGridMessage
+        {
+            From = new EmailAddress(FromEmail, FromName),
+            Subject = $"You're approved to make changes — {setlistCode}",
+            HtmlContent = BuildEditApprovedHtml(eventName, setlistCode, editLink),
+        };
+        msg.AddTo(new EmailAddress(clientEmail));
+
+        var r4 = await _client.SendEmailAsync(msg);
+        _logger.LogInformation("Edit approved email status: {Status}", r4.StatusCode);
+    }
 
     private static string BuildLeaderHtml(string eventName, string? eventDate, string clientEmail, string code) => $"""
         <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#fff;padding:40px;color:#1a1a1a;">
@@ -125,6 +141,20 @@ public class SendGridEmailService : IEmailService
             <a href="{approvalLink}" style="background:#1a1a1a;color:#fff;padding:14px 32px;border-radius:6px;text-decoration:none;font-size:15px;font-weight:600;">Approve Edit Request</a>
           </div>
           <p style="font-size:13px;color:#888;">This link is single-use and will expire once clicked.</p>
+        </div>
+        """;
+
+    private static string BuildEditApprovedHtml(string eventName, string code, string editLink) => $"""
+        <div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;background:#fff;padding:40px;color:#1a1a1a;">
+          <h1 style="font-size:28px;font-weight:600;margin-bottom:4px;">You're approved to make changes</h1>
+          <p style="color:#666;margin-top:0;font-size:14px;">The Nashville Band · Song Curator</p>
+          <hr style="border:none;border-top:1px solid #e5e5e5;margin:24px 0;" />
+          <p style="font-size:15px;">The band has approved your edit request for <strong>{System.Web.HttpUtility.HtmlEncode(eventName)}</strong> ({code}).</p>
+          <p style="font-size:15px;">Click below to return to the Song Curator and update your picks:</p>
+          <div style="text-align:center;margin:32px 0;">
+            <a href="{editLink}" style="background:#1a1a1a;color:#fff;padding:14px 32px;border-radius:6px;text-decoration:none;font-size:15px;font-weight:600;">Update My Picks</a>
+          </div>
+          <p style="font-size:13px;color:#888;">Your previous selections will be pre-loaded. Submit when you're done to send the updated setlist.</p>
         </div>
         """;
 }

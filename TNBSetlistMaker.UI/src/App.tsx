@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSongs } from "@/hooks/use-songs";
 import { useRatings } from "@/hooks/use-ratings";
 import { useSetlistSubmit } from "@/hooks/use-setlist-submit";
 import type { Playlist } from "@/types/song";
 import type { SongRating } from "@/types/rating";
+import type { CustomRequest } from "@/types/custom-request";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from "lucide-react";
@@ -19,6 +20,7 @@ interface SavedState {
   mode?: ViewMode;
   setlistCode?: string;
   submitState?: SubmitButtonState;
+  customRequests?: CustomRequest[];
 }
 
 function loadState(): SavedState {
@@ -55,19 +57,39 @@ function App() {
   const [showTray, setShowTray] = useState(false);
   const [showMobileHeader, setShowMobileHeader] = useState(false);
 
+  const [customRequests, setCustomRequests] = useState<CustomRequest[]>(saved.customRequests ?? []);
+  const [restoredDetails, setRestoredDetails] = useState({ eventName: "", eventDate: "", clientEmail: "" });
+
+  const addCustomRequest = useCallback(() => {
+    setCustomRequests((prev) => {
+      if (prev.length >= 5) return prev;
+      return [...prev, { id: crypto.randomUUID(), title: "", artist: "" }];
+    });
+  }, []);
+
+  const updateCustomRequest = useCallback((id: string, patch: Partial<Omit<CustomRequest, "id">>) => {
+    setCustomRequests((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }, []);
+
+  const removeCustomRequest = useCallback((id: string) => {
+    setCustomRequests((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
   const submit = useSetlistSubmit({
     songs,
     ratings,
     moments,
+    customRequests,
     initialCode: saved.setlistCode,
     initialSubmitState: saved.submitState ?? "idle",
     onRestoreRatings: (r, m) => {
       setRatings(r);
       setMoments(m);
     },
+    onRestoreCustomRequests: (cr) => setCustomRequests(cr),
+    onRestoreEventDetails: (en, ed, ce) => setRestoredDetails({ eventName: en, eventDate: ed, clientEmail: ce }),
   });
 
-  // Persist all state together
   useEffect(() => {
     saveState({
       ratings: [...ratings.entries()],
@@ -76,8 +98,9 @@ function App() {
       mode,
       setlistCode: submit.setlistCode,
       submitState: submit.submitState,
+      customRequests,
     });
-  }, [ratings, moments, activePlaylist, mode, submit.setlistCode, submit.submitState]);
+  }, [ratings, moments, activePlaylist, mode, submit.setlistCode, submit.submitState, customRequests]);
 
   const playlists = useMemo<Playlist[]>(() => {
     const map = new Map<string, Playlist>();
@@ -172,6 +195,10 @@ function App() {
         toggleMoment={toggleMoment}
         totalCounts={totalCounts}
         momentCounts={momentCounts}
+        customRequests={customRequests}
+        addCustomRequest={addCustomRequest}
+        updateCustomRequest={updateCustomRequest}
+        removeCustomRequest={removeCustomRequest}
         submitState={submit.submitState}
         setlistCode={submit.setlistCode}
         submitting={submit.submitting}
@@ -183,6 +210,7 @@ function App() {
         onCloseConfirmation={() => submit.setShowConfirmation(false)}
         onConfirmSubmit={submit.handleConfirmSubmit}
         onRestoreSession={submit.handleRestoreSession}
+        restoredDetails={restoredDetails}
       />
     </div>
   );

@@ -62,7 +62,7 @@ export function Header({
           disabled
           className="rounded-md px-3 sm:px-4 py-2 font-medium text-sm border hairline text-bone/30 cursor-not-allowed"
         >
-          Edit requested…
+          Edit requested
         </button>
       );
     }
@@ -73,7 +73,6 @@ export function Header({
         </button>
       );
     }
-    // idle
     return (
       <button
         onClick={onSubmit}

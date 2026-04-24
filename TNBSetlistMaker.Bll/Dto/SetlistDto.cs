@@ -8,6 +8,7 @@ public class SetlistDto
     public string ClientEmail { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public List<SetlistEntryDto> Entries { get; set; } = new();
+    public List<CustomRequestDto> CustomRequests { get; set; } = new();
 }
 
 public class SetlistEntryDto

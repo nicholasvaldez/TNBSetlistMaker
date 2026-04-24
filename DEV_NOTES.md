@@ -34,3 +34,4 @@ SecretId: `1940e3f6-fa3e-454c-b26e-fd9a730ce7ab`
 
 - [ ] **SendGrid sender domain** — verify `thenashvilleband.com` in SendGrid (Settings → Sender Authentication → Domain Authentication), then change `FromEmail` back to `noreply@thenashvilleband.com` in `TNBSetlistMaker.Bll/Services/SendGridEmailService.cs`
 - [ ] **Bandleader email** — replace `nickvee2012@gmail.com` with the real bandleader email in `SendGridEmailService.cs` (`BandleaderEmail` constant)
+- [ ] **`App:FrontendUrl` config** — must be set in `appsettings.json` (or environment) to the deployed frontend URL. Used by `SetlistService` to generate the `/?editApproved=TNB-XXXX` link sent to the client in the edit-approval email.

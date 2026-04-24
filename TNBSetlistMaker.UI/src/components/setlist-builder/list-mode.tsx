@@ -31,20 +31,18 @@ export function ListMode({
 }: ListModeProps) {
   const filtered = useMemo(
     () => songs.filter((s) => activePlaylist === "all" || s.playlistId === activePlaylist),
-    [songs, activePlaylist]
+    [songs, activePlaylist],
   );
   const [openId, setOpenId] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
 
-  // Find the currently expanded song
   const openSong = filtered.find((s) => s.id === openId);
-  // Fetch preview URL when a row is expanded
   const { previewUrl, loading: previewLoading } = usePreviewUrl(openSong?.spotifyId);
 
   return (
     <div className="w-full paper rounded-xl ring-gold overflow-hidden">
       <div className="grid grid-cols-[auto_1fr_auto_auto] gap-4 px-4 sm:px-5 py-3 border-b hairline stamp">
-        <div className="w-[88px]">#</div>
+        <div className="w-22">#</div>
         <div>Title</div>
         <div className="hidden sm:block">Playlist</div>
         <div>Pick</div>
@@ -61,9 +59,9 @@ export function ListMode({
                   setOpenId(isOpen ? null : song.id);
                   setPlaying(false);
                 }}
-                className="grid grid-cols-[auto_1fr_auto_auto] gap-4 px-4 sm:px-5 py-3 items-center w-full text-left hover:bg-bone/[0.03]"
+                className="grid grid-cols-[auto_1fr_auto_auto] gap-4 px-4 sm:px-5 py-3 items-center w-full text-left hover:bg-bone/3"
               >
-                <div className="w-[88px] flex items-center gap-2 shrink-0">
+                <div className="w-22 flex items-center gap-2 shrink-0">
                   <span className="font-mono text-xs text-bone/40 w-5 tabular-nums">
                     {String(i + 1).padStart(2, "0")}
                   </span>
@@ -94,7 +92,13 @@ export function ListMode({
               </button>
               {isOpen && (
                 <div className="px-4 sm:px-5 pb-4 pt-1 fade-up">
-                  <Preview song={song} playing={playing} setPlaying={setPlaying} previewUrl={previewUrl} previewLoading={previewLoading} />
+                  <Preview
+                    song={song}
+                    playing={playing}
+                    setPlaying={setPlaying}
+                    previewUrl={previewUrl}
+                    previewLoading={previewLoading}
+                  />
                   <div className="mt-3">
                     <BucketButtons value={r || null} onPick={(b) => setRating(song.id, b)} />
                   </div>

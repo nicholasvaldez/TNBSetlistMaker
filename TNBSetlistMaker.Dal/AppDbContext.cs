@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<Setlist> Setlists => Set<Setlist>();
     public DbSet<SetlistEntry> SetlistEntries => Set<SetlistEntry>();
     public DbSet<SetlistEntryMoment> SetlistEntryMoments => Set<SetlistEntryMoment>();
+    public DbSet<SetlistCustomRequest> SetlistCustomRequests => Set<SetlistCustomRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,6 +52,12 @@ public class AppDbContext : DbContext
             .HasMany(e => e.Moments)
             .WithOne(m => m.SetlistEntry)
             .HasForeignKey(m => m.SetlistEntryId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Setlist>()
+            .HasMany(s => s.CustomRequests)
+            .WithOne(r => r.Setlist)
+            .HasForeignKey(r => r.SetlistId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

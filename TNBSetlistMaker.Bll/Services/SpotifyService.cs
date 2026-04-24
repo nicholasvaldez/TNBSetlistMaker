@@ -3,12 +3,11 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Web;
 using Hangfire;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using TNBSetlistMaker.Bll.Dto;
 using TNBSetlistMaker.Bll.Interfaces;
-using TNBSetlistMaker.Dal.Data;
 using TNBSetlistMaker.Domain.Entities;
+using TNBSetlistMaker.Domain.Interfaces;
 
 namespace TNBSetlistMaker.Bll.Services;
 
@@ -16,16 +15,16 @@ public class SpotifyService : ISpotifyService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _config;
-    private readonly AppDbContext _context;
+    private readonly ISpotifyRepository _repo;
     private const string AuthUrl = "https://accounts.spotify.com/authorize";
     private const string TokenUrl = "https://accounts.spotify.com/api/token";
     private const string Scopes = "playlist-read-private playlist-read-collaborative";
 
-    public SpotifyService(HttpClient httpClient, IConfiguration config, AppDbContext context)
+    public SpotifyService(HttpClient httpClient, IConfiguration config, ISpotifyRepository repo)
     {
         _httpClient = httpClient;
         _config = config;
-        _context = context;
+        _repo = repo;
     }
 
     public string GetAuthorizationUrl()
@@ -67,34 +66,28 @@ public class SpotifyService : ISpotifyService
         var refreshToken = content.GetProperty("refresh_token").GetString()!;
         var expiresIn = content.GetProperty("expires_in").GetInt32();
 
-        // Remove any existing tokens and store the new one
-        var existingTokens = await _context.SpotifyTokens.ToListAsync();
-        _context.SpotifyTokens.RemoveRange(existingTokens);
-
         var token = new SpotifyToken
         {
             Id = Guid.NewGuid(),
             AccessToken = accessToken,
             RefreshToken = refreshToken,
-            ExpiresAt = DateTime.UtcNow.AddSeconds(expiresIn - 60), // Buffer of 60 seconds
+            ExpiresAt = DateTime.UtcNow.AddSeconds(expiresIn - 60),
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
-        _context.SpotifyTokens.Add(token);
-        await _context.SaveChangesAsync();
+        await _repo.ReplaceTokenAsync(token);
     }
 
     public async Task<string> GetOrRefreshAccessTokenAsync()
     {
-        var token = await _context.SpotifyTokens.FirstOrDefaultAsync();
+        var token = await _repo.GetTokenAsync();
 
         if (token == null)
         {
             throw new InvalidOperationException("No Spotify token found. Please authenticate at /auth/spotify/login");
         }
 
-        // If token is expired or about to expire, refresh it
         if (DateTime.UtcNow >= token.ExpiresAt)
         {
             await RefreshAccessTokenAsync(token);
@@ -125,18 +118,16 @@ public class SpotifyService : ISpotifyService
         var accessToken = content.GetProperty("access_token").GetString()!;
         var expiresIn = content.GetProperty("expires_in").GetInt32();
 
-        // Update the token in the database
         token.AccessToken = accessToken;
         token.ExpiresAt = DateTime.UtcNow.AddSeconds(expiresIn - 60);
         token.UpdatedAt = DateTime.UtcNow;
 
-        // Spotify may return a new refresh token
         if (content.TryGetProperty("refresh_token", out var newRefreshToken))
         {
             token.RefreshToken = newRefreshToken.GetString()!;
         }
 
-        await _context.SaveChangesAsync();
+        await _repo.SaveChangesAsync();
     }
 
     public async Task<string> GetAccessTokenAsync()
@@ -231,14 +222,10 @@ public class SpotifyService : ISpotifyService
 
     public async Task SyncPlaylistAsync(string spotifyId)
     {
-        // Fetch playlist metadata and tracks from Spotify
         var metadata = await GetPlaylistMetadataAsync(spotifyId);
         var spotifyData = await GetPlaylistAsync(spotifyId);
 
-        // Upsert Playlist
-        var playlist = await _context.Playlists
-            .Include(p => p.Songs)
-            .FirstOrDefaultAsync(p => p.SpotifyId == spotifyId);
+        var playlist = await _repo.GetPlaylistWithSongsBySpotifyIdAsync(spotifyId);
 
         if (playlist == null)
         {
@@ -250,7 +237,7 @@ public class SpotifyService : ISpotifyService
                 Description = metadata.Description,
                 ImageUrl = metadata.ImageUrl
             };
-            _context.Playlists.Add(playlist);
+            await _repo.AddPlaylistAsync(playlist);
         }
         else
         {
@@ -259,19 +246,16 @@ public class SpotifyService : ISpotifyService
             playlist.ImageUrl = metadata.ImageUrl;
         }
 
-        // Get current Spotify track IDs
         var currentSpotifyTrackIds = spotifyData.Items
             .Where(i => i.Item != null && !string.IsNullOrEmpty(i.Item.Id))
             .Select(i => i.Item.Id)
             .ToHashSet();
 
-        // Remove songs that are no longer in the playlist
         var songsToRemove = playlist.Songs
             .Where(s => !currentSpotifyTrackIds.Contains(s.SpotifyId))
             .ToList();
-        _context.Songs.RemoveRange(songsToRemove);
+        await _repo.RemoveSongsAsync(songsToRemove);
 
-        // Upsert songs
         foreach (var item in spotifyData.Items)
         {
             if (item.Item == null || string.IsNullOrEmpty(item.Item.Id))
@@ -280,12 +264,11 @@ public class SpotifyService : ISpotifyService
             var existingSong = playlist.Songs.FirstOrDefault(s => s.SpotifyId == item.Item.Id);
             var artistName = item.Item.Artists.FirstOrDefault()?.Name ?? "Unknown Artist";
 
-            // Get the album image URL (prefer medium size ~300px, fallback to first available)
+            // prefer medium size ~300px, fallback to first available
             var albumImageUrl = item.Item.Album?.Images
                 .OrderBy(img => Math.Abs((img.Width ?? 300) - 300))
                 .FirstOrDefault()?.Url;
 
-            // Parse duration from milliseconds to "M:SS" format
             string? duration = null;
             if (item.Item.DurationMs.HasValue)
             {
@@ -295,7 +278,7 @@ public class SpotifyService : ISpotifyService
                 duration = $"{minutes}:{seconds:D2}";
             }
 
-            // Parse year from release_date (format: "YYYY-MM-DD" or "YYYY")
+            // release_date format: "YYYY-MM-DD" or "YYYY"
             int? year = null;
             if (!string.IsNullOrEmpty(item.Item.Album?.ReleaseDate) && item.Item.Album.ReleaseDate.Length >= 4)
             {
@@ -319,7 +302,7 @@ public class SpotifyService : ISpotifyService
                     PreviewUrl = item.Item.PreviewUrl,
                     PlaylistId = playlist.Id
                 };
-                _context.Songs.Add(newSong);
+                await _repo.AddSongAsync(newSong);
             }
             else
             {
@@ -332,20 +315,18 @@ public class SpotifyService : ISpotifyService
             }
         }
 
-        // Update TrackedPlaylist.LastSynced
-        var trackedPlaylist = await _context.TrackedPlaylists
-            .FirstOrDefaultAsync(tp => tp.SpotifyId == spotifyId);
+        var trackedPlaylist = await _repo.GetTrackedPlaylistBySpotifyIdAsync(spotifyId);
         if (trackedPlaylist != null)
         {
             trackedPlaylist.LastSynced = DateTime.UtcNow;
         }
 
-        await _context.SaveChangesAsync();
+        await _repo.SaveChangesAsync();
     }
 
     public async Task SyncAllTrackedPlaylistsAsync()
     {
-        var trackedPlaylists = await _context.TrackedPlaylists.ToListAsync();
+        var trackedPlaylists = await _repo.GetAllTrackedPlaylistsAsync();
 
         foreach (var tp in trackedPlaylists)
         {
@@ -355,14 +336,9 @@ public class SpotifyService : ISpotifyService
 
     public async Task<IEnumerable<SongWithPlaylistDto>> GetSongsAsync(string? playlistId = null)
     {
-        var query = _context.Songs.Include(s => s.Playlist).AsQueryable();
+        var songs = await _repo.GetSongsWithPlaylistAsync(playlistId);
 
-        if (!string.IsNullOrEmpty(playlistId))
-        {
-            query = query.Where(s => s.Playlist != null && s.Playlist.SpotifyId == playlistId);
-        }
-
-        return await query.Select(s => new SongWithPlaylistDto
+        return songs.Select(s => new SongWithPlaylistDto
         {
             Id = s.Id,
             SpotifyId = s.SpotifyId,
@@ -373,7 +349,7 @@ public class SpotifyService : ISpotifyService
             Year = s.Year,
             PlaylistId = s.PlaylistId,
             PlaylistName = s.Playlist != null ? s.Playlist.Name : string.Empty
-        }).ToListAsync();
+        });
     }
 
     public async Task<string?> GetTrackPreviewUrlAsync(string spotifyId)

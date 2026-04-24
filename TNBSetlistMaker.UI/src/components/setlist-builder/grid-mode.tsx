@@ -37,7 +37,6 @@ export function GridMode({
   const [playing, setPlaying] = useState(false);
   const open = filtered.find((s) => s.id === openId);
 
-  // Fetch preview URL when a tile is selected
   const { previewUrl, loading: previewLoading } = usePreviewUrl(open?.spotifyId);
 
   return (

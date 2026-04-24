@@ -16,7 +16,6 @@ export function usePreviewUrl(spotifyId: string | undefined): UsePreviewUrlResul
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    // No spotifyId, nothing to fetch
     if (!spotifyId) {
       setPreviewUrl(null);
       setLoading(false);
@@ -32,7 +31,6 @@ export function usePreviewUrl(spotifyId: string | undefined): UsePreviewUrlResul
       return;
     }
 
-    // Abort any previous request
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;

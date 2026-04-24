@@ -84,7 +84,6 @@ public class SpotifyController : ControllerBase
         _context.TrackedPlaylists.Add(playlist);
         await _context.SaveChangesAsync();
 
-        // Immediately sync the playlist
         await _spotifyService.SyncPlaylistAsync(request.SpotifyId);
 
         return Ok(new { message = "Playlist tracked and synced", playlist });

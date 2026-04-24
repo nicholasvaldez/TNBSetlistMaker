@@ -12,4 +12,5 @@ public class Setlist
     public string? EditApprovalToken { get; set; }
 
     public ICollection<SetlistEntry> Entries { get; set; } = new List<SetlistEntry>();
+    public ICollection<SetlistCustomRequest> CustomRequests { get; set; } = new List<SetlistCustomRequest>();
 }

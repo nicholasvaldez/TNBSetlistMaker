@@ -5,12 +5,19 @@ interface SubmitFormModalProps {
   onConfirm: (eventName: string, eventDate: string, clientEmail: string) => void;
   isResubmit?: boolean;
   submitting?: boolean;
+  initialValues?: { eventName?: string; eventDate?: string; clientEmail?: string };
 }
 
-export function SubmitFormModal({ onClose, onConfirm, isResubmit = false, submitting = false }: SubmitFormModalProps) {
-  const [eventName, setEventName] = useState("");
-  const [eventDate, setEventDate] = useState("");
-  const [clientEmail, setClientEmail] = useState("");
+export function SubmitFormModal({
+  onClose,
+  onConfirm,
+  isResubmit = false,
+  submitting = false,
+  initialValues,
+}: SubmitFormModalProps) {
+  const [eventName, setEventName] = useState(initialValues?.eventName ?? "");
+  const [eventDate, setEventDate] = useState(initialValues?.eventDate ?? "");
+  const [clientEmail, setClientEmail] = useState(initialValues?.clientEmail ?? "");
   const [errors, setErrors] = useState<{ eventName?: string; clientEmail?: string }>({});
 
   function validate() {

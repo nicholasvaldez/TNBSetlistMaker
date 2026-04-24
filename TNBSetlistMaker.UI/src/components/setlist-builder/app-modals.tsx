@@ -1,5 +1,6 @@
 import type { Song } from "@/types/song";
 import type { SongRating } from "@/types/rating";
+import type { CustomRequest } from "@/types/custom-request";
 import type { SubmitButtonState } from "./header";
 import { Tray } from "./tray";
 import { SubmitFormModal } from "./submit-form-modal";
@@ -7,7 +8,6 @@ import { SubmittedModal } from "./submitted-modal";
 import { RestoreSessionInput } from "./restore-session-input";
 
 interface AppModalsProps {
-  // Shared data
   songs: Song[];
   ratings: Map<string, SongRating>;
   moments: Map<string, Set<string>>;
@@ -15,21 +15,22 @@ interface AppModalsProps {
   toggleMoment: (songId: string, momentId: string) => void;
   totalCounts: { must: number; maybe: number; skip: number; rated: number };
   momentCounts: Record<string, number>;
-
-  // Submit flow
+  customRequests: CustomRequest[];
+  addCustomRequest: () => void;
+  updateCustomRequest: (id: string, patch: Partial<Omit<CustomRequest, "id">>) => void;
+  removeCustomRequest: (id: string) => void;
   submitState: SubmitButtonState;
   setlistCode: string | undefined;
   submitting: boolean;
   showTray: boolean;
   showSubmitForm: boolean;
   showConfirmation: boolean;
-
-  // Handlers
   onCloseTray: () => void;
   onCloseSubmitForm: () => void;
   onCloseConfirmation: () => void;
   onConfirmSubmit: (eventName: string, eventDate: string, clientEmail: string) => Promise<void>;
   onRestoreSession: (code: string) => Promise<boolean>;
+  restoredDetails: { eventName: string; eventDate: string; clientEmail: string };
 }
 
 export function AppModals({
@@ -40,6 +41,10 @@ export function AppModals({
   toggleMoment,
   totalCounts,
   momentCounts,
+  customRequests,
+  addCustomRequest,
+  updateCustomRequest,
+  removeCustomRequest,
   submitState,
   setlistCode,
   submitting,
@@ -51,6 +56,7 @@ export function AppModals({
   onCloseConfirmation,
   onConfirmSubmit,
   onRestoreSession,
+  restoredDetails,
 }: AppModalsProps) {
   return (
     <>
@@ -66,6 +72,10 @@ export function AppModals({
           setRating={setRating}
           moments={moments}
           toggleMoment={toggleMoment}
+          customRequests={customRequests}
+          addCustomRequest={addCustomRequest}
+          updateCustomRequest={updateCustomRequest}
+          removeCustomRequest={removeCustomRequest}
         />
       )}
 
@@ -75,6 +85,7 @@ export function AppModals({
           onConfirm={onConfirmSubmit}
           isResubmit={submitState === "editApproved"}
           submitting={submitting}
+          initialValues={restoredDetails}
         />
       )}
 

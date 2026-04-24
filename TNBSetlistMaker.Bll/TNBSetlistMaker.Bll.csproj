@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TNBSetlistMaker.Domain\TNBSetlistMaker.Domain.csproj" />
-    <ProjectReference Include="..\TNBSetlistMaker.Dal\TNBSetlistMaker.Dal.csproj" />
   </ItemGroup>
 
   <ItemGroup>

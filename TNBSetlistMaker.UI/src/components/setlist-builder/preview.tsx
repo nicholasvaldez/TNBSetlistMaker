@@ -9,7 +9,6 @@ function fmtTime(s: number): string {
   return `${m}:${sec}`;
 }
 
-// Generate waveform data from audio buffer
 function generateWaveform(audioBuffer: AudioBuffer, bars: number): number[] {
   const channelData = audioBuffer.getChannelData(0);
   const samplesPerBar = Math.floor(channelData.length / bars);
@@ -33,7 +32,6 @@ function generateWaveform(audioBuffer: AudioBuffer, bars: number): number[] {
   return waveform.map((v) => 0.25 + (v / max) * 0.75);
 }
 
-// Fallback pseudo-random waveform based on song ID
 function generateFallbackWaveform(songId: string, bars: number): number[] {
   let h = 0;
   for (let i = 0; i < songId.length; i++) {
@@ -62,37 +60,36 @@ export function Preview({ song, playing, setPlaying, previewUrl: externalPreview
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Use previewUrl from hook (fetched on-demand)
   const hasPreview = !!externalPreviewUrl;
   const bars = 48;
 
-  // Skeleton waveform for loading state
   const skeletonWaveform = generateFallbackWaveform("skeleton", bars);
 
-  // Analyze audio and generate waveform when previewUrl changes
-  const analyzeAudio = useCallback(async (url: string) => {
-    setWaveform(null); // Clear waveform to show skeleton
-    setWaveformLoading(true);
-    try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContext();
+  const analyzeAudio = useCallback(
+    async (url: string) => {
+      setWaveform(null); // Clear waveform to show skeleton
+      setWaveformLoading(true);
+      try {
+        if (!audioContextRef.current) {
+          audioContextRef.current = new AudioContext();
+        }
+        const ctx = audioContextRef.current;
+
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+        const newWaveform = generateWaveform(audioBuffer, bars);
+        setWaveform(newWaveform);
+      } catch (err) {
+        console.error("Failed to analyze audio:", err);
+        setWaveform(generateFallbackWaveform(song.id, bars));
+      } finally {
+        setWaveformLoading(false);
       }
-      const ctx = audioContextRef.current;
-
-      const response = await fetch(url);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-
-      const newWaveform = generateWaveform(audioBuffer, bars);
-      setWaveform(newWaveform);
-    } catch (err) {
-      console.error("Failed to analyze audio:", err);
-      // Use fallback on error
-      setWaveform(generateFallbackWaveform(song.id, bars));
-    } finally {
-      setWaveformLoading(false);
-    }
-  }, [song.id]);
+    },
+    [song.id],
+  );
 
   useEffect(() => {
     if (externalPreviewUrl) {
@@ -102,11 +99,9 @@ export function Preview({ song, playing, setPlaying, previewUrl: externalPreview
     }
   }, [externalPreviewUrl, analyzeAudio]);
 
-  // Display waveform: actual, or skeleton while loading
   const displayWaveform = waveform ?? skeletonWaveform;
   const isWaveformReady = waveform !== null && !waveformLoading;
 
-  // Play/pause based on playing prop
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !hasPreview) return;
@@ -120,7 +115,6 @@ export function Preview({ song, playing, setPlaying, previewUrl: externalPreview
     }
   }, [playing, hasPreview, setPlaying]);
 
-  // Reset when song changes
   useEffect(() => {
     const audio = audioRef.current;
     if (audio) {
@@ -132,7 +126,6 @@ export function Preview({ song, playing, setPlaying, previewUrl: externalPreview
     }
   }, [song.id]);
 
-  // Handle audio events - re-attach when previewUrl changes
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -164,7 +157,6 @@ export function Preview({ song, playing, setPlaying, previewUrl: externalPreview
 
   const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // Loading state
   if (previewLoading) {
     return (
       <div className="w-full select-none">
@@ -177,19 +169,15 @@ export function Preview({ song, playing, setPlaying, previewUrl: externalPreview
               viewBox="0 0 24 24"
             >
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-end gap-[2px] h-8 opacity-30">
+            <div className="flex items-end gap-0.5 h-8 opacity-30">
               {skeletonWaveform.map((h, i) => (
                 <div
                   key={i}
-                  className="w-[3px] rounded-sm animate-pulse"
+                  className="w-0.75 rounded-sm animate-pulse"
                   style={{
                     height: `${h * 100}%`,
                     background: "rgba(227,199,122,0.22)",
@@ -220,11 +208,11 @@ export function Preview({ song, playing, setPlaying, previewUrl: externalPreview
             </svg>
           </button>
           <div className="flex-1 min-w-0">
-            <div className="flex items-end gap-[2px] h-8 opacity-30">
+            <div className="flex items-end gap-0.5 h-8 opacity-30">
               {skeletonWaveform.map((h, i) => (
                 <div
                   key={i}
-                  className="w-[3px] rounded-sm"
+                  className="w-0.75 rounded-sm"
                   style={{
                     height: `${h * 100}%`,
                     background: "rgba(227,199,122,0.22)",
@@ -243,9 +231,7 @@ export function Preview({ song, playing, setPlaying, previewUrl: externalPreview
 
   return (
     <div className="w-full select-none">
-      {externalPreviewUrl && (
-        <audio ref={audioRef} src={externalPreviewUrl} preload="metadata" />
-      )}
+      {externalPreviewUrl && <audio ref={audioRef} src={externalPreviewUrl} preload="metadata" />}
       <div className="flex items-center gap-3">
         <button
           onClick={() => setPlaying(!playing)}
@@ -264,14 +250,14 @@ export function Preview({ song, playing, setPlaying, previewUrl: externalPreview
           )}
         </button>
         <div className="flex-1 min-w-0">
-          <div className="flex items-end gap-[2px] h-8">
+          <div className="flex items-end gap-0.5 h-8">
             {displayWaveform.map((h, i) => {
               const barPct = (i / bars) * 100;
               const passed = barPct < pct;
               return (
                 <div
                   key={i}
-                  className={`w-[3px] rounded-sm transition-all duration-150 ease-out ${!isWaveformReady ? "animate-pulse" : ""}`}
+                  className={`w-0.75 rounded-sm transition-all duration-150 ease-out ${!isWaveformReady ? "animate-pulse" : ""}`}
                   style={{
                     height: `${h * 100}%`,
                     background: !isWaveformReady

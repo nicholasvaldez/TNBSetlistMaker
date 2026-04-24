@@ -11,7 +11,6 @@ export function RestoreSessionInput({ onRestore }: RestoreSessionInputProps) {
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Close popover on outside click
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {

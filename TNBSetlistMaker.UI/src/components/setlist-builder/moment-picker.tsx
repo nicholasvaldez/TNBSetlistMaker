@@ -1,15 +1,36 @@
 import { MOMENTS } from "@/types/moment";
 import { MomentChip } from "./moment-chip";
 
-interface MomentPickerProps {
+interface MomentPickerMultiProps {
+  singleSelect?: false;
   songId: string;
   moments: Map<string, Set<string>>;
   toggleMoment: (songId: string, momentId: string) => void;
   compact?: boolean;
 }
 
-export function MomentPicker({ songId, moments, toggleMoment, compact = false }: MomentPickerProps) {
-  const tags = moments.get(songId) || new Set<string>();
+interface MomentPickerSingleProps {
+  singleSelect: true;
+  selectedMomentId?: string;
+  onSelectMoment: (momentId: string | undefined) => void;
+  compact?: boolean;
+}
+
+type MomentPickerProps = MomentPickerMultiProps | MomentPickerSingleProps;
+
+export function MomentPicker(props: MomentPickerProps) {
+  const { compact = false } = props;
+
+  let tags: Set<string>;
+  let handleClick: (id: string) => void;
+
+  if (props.singleSelect) {
+    tags = props.selectedMomentId ? new Set([props.selectedMomentId]) : new Set();
+    handleClick = (id) => props.onSelectMoment(props.selectedMomentId === id ? undefined : id);
+  } else {
+    tags = props.moments.get(props.songId) || new Set<string>();
+    handleClick = (id) => props.toggleMoment(props.songId, id);
+  }
 
   return (
     <div className={compact ? "" : "rounded-lg border hairline p-3 bg-ink/40"}>
@@ -30,7 +51,7 @@ export function MomentPicker({ songId, moments, toggleMoment, compact = false }:
               key={m.id}
               onClick={(e) => {
                 e.stopPropagation();
-                toggleMoment(songId, m.id);
+                handleClick(m.id);
               }}
               className="btn-bucket rounded-full"
             >

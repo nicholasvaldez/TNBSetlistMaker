@@ -45,7 +45,6 @@ export function FooterSummary({
         </button>
       );
     }
-    // idle
     return canSubmit ? (
       <button onClick={onSubmit} className="chip-gold px-3 py-2 rounded-md text-sm font-medium">
         Submit

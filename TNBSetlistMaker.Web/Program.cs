@@ -1,13 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using TNBSetlistMaker.Dal.Data;
+using TNBSetlistMaker.Dal.Repositories;
+using TNBSetlistMaker.Domain.Interfaces;
 using TNBSetlistMaker.Bll.Interfaces;
 using TNBSetlistMaker.Bll.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
 
 builder.Services.AddCors(options =>
 {
@@ -20,20 +20,21 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
         b => b.MigrationsAssembly("TNBSetlistMaker.Dal")));
-        // Registers the interface and implementation, and configures HttpClient for it
 builder.Services.AddHttpClient<ISpotifyService, SpotifyService>();
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+builder.Services.AddScoped<ISetlistRepository, SetlistRepository>();
+builder.Services.AddScoped<ISpotifyRepository, SpotifyRepository>();
 builder.Services.AddScoped<ISetlistService>(sp =>
     new SetlistService(
-        sp.GetRequiredService<AppDbContext>(),
+        sp.GetRequiredService<ISetlistRepository>(),
         sp.GetRequiredService<IEmailService>(),
-        builder.Configuration["App:BaseUrl"] ?? "http://localhost:5152"));
+        builder.Configuration["App:BaseUrl"] ?? "http://localhost:5152",
+        builder.Configuration["App:FrontendUrl"] ?? "http://localhost:5173"));
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
@@ -46,7 +47,6 @@ var app = builder.Build();
 
 app.UseHangfireDashboard();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
