@@ -13,7 +13,14 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+        var frontendUrl = builder.Configuration["App:FrontendUrl"] ?? "http://localhost:5173";
+        var origins = new List<string> { frontendUrl };
+        if (builder.Environment.IsDevelopment())
+        {
+            origins.Add("http://localhost:5173");
+            origins.Add("http://127.0.0.1:5173");
+        }
+        policy.WithOrigins(origins.Distinct().ToArray())
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -45,10 +52,9 @@ builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 
-app.UseHangfireDashboard();
-
 if (app.Environment.IsDevelopment())
 {
+    app.UseHangfireDashboard();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
@@ -59,6 +65,17 @@ app.UseCors("AllowFrontend");
 
 app.UseAuthorization();
 
+app.UseStaticFiles();
+
 app.MapControllers();
+
+app.MapGet("/admin", () => Results.File(
+    Path.Combine(app.Environment.ContentRootPath, "wwwroot", "admin.html"),
+    "text/html"));
+
+RecurringJob.AddOrUpdate<ISpotifyService>(
+    "sync-all-playlists",
+    s => s.SyncAllTrackedPlaylistsAsync(),
+    Cron.Daily);
 
 app.Run();

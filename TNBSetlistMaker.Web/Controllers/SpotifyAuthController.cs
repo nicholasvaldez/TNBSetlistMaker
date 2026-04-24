@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using TNBSetlistMaker.Bll.Interfaces;
+using TNBSetlistMaker.Web.Filters;
 
 namespace TNBSetlistMaker.Web.Controllers;
 
@@ -14,6 +15,7 @@ public class SpotifyAuthController : ControllerBase
         _spotifyService = spotifyService;
     }
 
+    [AdminApiKey]
     [HttpGet("login")]
     public IActionResult Login()
     {
@@ -37,7 +39,7 @@ public class SpotifyAuthController : ControllerBase
         try
         {
             await _spotifyService.ExchangeCodeForTokensAsync(code);
-            return Ok(new { message = "Spotify authentication successful! Token stored." });
+            return Redirect("/admin?connected=true");
         }
         catch (Exception ex)
         {

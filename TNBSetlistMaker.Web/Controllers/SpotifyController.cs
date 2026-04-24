@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using TNBSetlistMaker.Bll.Interfaces;
 using TNBSetlistMaker.Dal.Data;
 using TNBSetlistMaker.Domain.Entities;
+using TNBSetlistMaker.Web.Filters;
 
 namespace TNBSetlistMaker.Web.Controllers;
 
@@ -19,6 +20,21 @@ public class SpotifyController : ControllerBase
         _context = context;
     }
 
+    [AdminApiKey]
+    [HttpGet("status")]
+    public async Task<IActionResult> GetStatus()
+    {
+        var token = await _context.SpotifyTokens.FirstOrDefaultAsync();
+        var trackedCount = await _context.TrackedPlaylists.CountAsync();
+        return Ok(new
+        {
+            connected = token != null,
+            lastRefreshed = token?.UpdatedAt,
+            trackedPlaylists = trackedCount,
+        });
+    }
+
+    [AdminApiKey]
     [HttpGet("playlist/{playlistId}")]
     public async Task<IActionResult> GetPlaylist(string playlistId)
     {
@@ -35,6 +51,7 @@ public class SpotifyController : ControllerBase
         }
     }
 
+    [AdminApiKey]
     [HttpPost("sync-all")]
     public async Task<IActionResult> SyncAll()
     {
@@ -56,6 +73,7 @@ public class SpotifyController : ControllerBase
         return Ok(new { previewUrl });
     }
 
+    [AdminApiKey]
     [HttpGet("playlists/tracked")]
     public async Task<IActionResult> GetTrackedPlaylists()
     {
@@ -63,6 +81,7 @@ public class SpotifyController : ControllerBase
         return Ok(playlists);
     }
 
+    [AdminApiKey]
     [HttpPost("playlists/track")]
     public async Task<IActionResult> TrackPlaylist([FromBody] TrackPlaylistRequest request)
     {
